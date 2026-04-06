@@ -1157,6 +1157,9 @@ html+=`<div class="cd"><div class="cb"><div class="ds"><h4>Datos Generales del P
 <div class="fg"><label>Acceso directo al procedimiento</label><input type="text" value="${H(p.acceso)}" onchange="updP(${pidx},'acceso',this.value)" placeholder="URL o referencia">${p.acceso?'<a href="'+H(p.acceso)+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:3px;font-size:11px;color:var(--bl);text-decoration:none">↗ Abrir carpeta</a>':''}</div>
 <div class="fg"><label>Acceso directo a la ejecución</label><input type="text" value="${H(p.accesoEjec)}" onchange="updP(${pidx},'accesoEjec',this.value)" placeholder="URL o referencia">${p.accesoEjec?'<a href="'+H(p.accesoEjec)+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:3px;font-size:11px;color:var(--bl);text-decoration:none">↗ Abrir carpeta</a>':''}</div>
 </div>
+<div class="fgr c1">
+<div class="fg"><label>Carpetas del procedimiento en OneDrive</label>${rFolderLinks(pidx)}</div>
+</div>
 </div></div></div>`;
 // ADMINISTRACIÓN ACTUANTE
 html+=`<div class="dg"><div class="cd"><div class="cb"><div class="ds"><h4>Administración Actuante</h4>
@@ -1294,7 +1297,10 @@ function recalcEjec(pidx){
 }
 // NUEVO
 function rNuevo(){return`<div class="bn"><h2>Nuevo Procedimiento</h2></div><div class="cd"><div class="cb"><div class="ds"><h4>Datos Generales del Procedimiento</h4><div class="fgr c3"><div class="fg"><label>NIG</label><input id="nf_nig" type="text" placeholder="2305042120240xxxx"></div><div class="fg"><label>Ref. MyTao</label><input id="nf_r" type="text"></div><div class="fg"><label>Descripción</label><textarea id="nf_d" rows="2" placeholder="Descripción del procedimiento"></textarea></div></div><div class="fgr c3"><div class="fg"><label>Cuantía del procedimiento (€)</label><input id="nf_cu" type="number" step="0.01"></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_ci" onchange="document.getElementById('nf_cu').disabled=this.checked"><label for="nf_ci" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Cuantía indeterminada</label></div></div><div class="fg"><label>Letrado asignado</label><select id="nf_l"><option value="">—</option>${uv(DB.p,'letrado').map(n=>`<option>${H(n)}</option>`).join('')}</select></div></div><div class="fgr c3"><div class="fg"><label>Instancia actual</label><select id="nf_e"><option value="En Primera Intancia">En Primera Instancia</option><option>En Apelación</option><option>En Casación</option><option>En Ejecución</option><option>Finalizado</option></select></div><div class="fg"><label>Acceso directo al procedimiento</label><input id="nf_acc" type="text" placeholder="URL o referencia"></div><div class="fg"><label>Acceso directo a la ejecución</label><input id="nf_accE" type="text" placeholder="URL o referencia"></div></div></div><div class="dg"><div class="ds"><h4>Administración Actuante</h4><div class="fg"><label>Administración actuante</label><select id="nf_a"><option selected>Ayuntamiento</option><option>Patronato Deportes</option><option>Asuntos Sociales</option><option>Universidad Popular</option><option>GMU</option><option>Cultura</option></select></div><div class="fg"><label>En calidad de</label><select id="nf_c"><option>DEMANDADOS</option><option>DEMANDANTES</option><option>ACREEDOR</option></select></div><div class="fg"><label>Negociado de origen</label><select id="nf_n"><option value="">—</option><option>Responsabilidad Patrimonial</option><option>Personal</option><option>Gestión Tributaria</option><option>Recaudación</option><option>Intervención/Tesorería</option><option>Policía Local</option><option>GMU</option><option>Patronato Mpal. de Cultura</option><option>Universidad Popular Mpal.</option><option>Patronato de Deportes</option><option>Patronato Mpal. de Asuntos Sociales</option><option>IMEFE</option><option>CEE</option><option>Contratación</option><option>Servicio Jurídico</option><option>Alcaldía</option><option>Mercados</option><option>Patrimonio</option><option>Sanidad</option><option>Informática</option></select></div><div class="fg"><label>Notas</label><textarea id="nf_no" rows="2"></textarea></div></div><div class="ds"><h4>Inicio / Fin del Expediente</h4><div class="fgr"><div class="fg"><label>Fecha de inicio</label><input id="nf_fi" type="date"></div><div class="fg"><label>Fecha de cierre</label><input id="nf_fc" type="date"></div></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_fin"><label for="nf_fin" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Finalizado en todas sus instancias</label></div></div><div class="fg"><label>Resultado</label><select id="nf_re"><option value="">Pendiente</option><option>GANADO</option><option>DEMANDA DESESTIMADA</option><option>PERDIDO</option><option>ESTIM. PARCIAL</option><option>DESISTIDO</option><option>ACUERDO</option><option>SATISF. EXTRAPROCESAL</option><option>ARCHIVADO</option></select></div><div class="ds" style="margin-top:8px"><h4>Perjuicio / Beneficio Resultante</h4><div class="fgr c3"><div class="fg"><label>Principal (€)</label><input id="nf_pP" type="number" step="0.01"></div><div class="fg"><label>Intereses (€)</label><input id="nf_pI" type="number" step="0.01"></div><div class="fg"><label>Costas (€)</label><input id="nf_pC" type="number" step="0.01"></div></div></div></div></div></div></div><div class="cd"><div class="chh"><h3>Clase de Procedimiento (1ª Instancia)</h3></div><div class="cb"><div class="fgr c3"><div class="fg"><label>Clase de Procedimiento</label><select id="nf_ev_clase"><option value="">—</option><option>ABREVIADO</option><option>ORDINARIO</option><option>MONITORIO</option><option>P.O. LABORAL</option><option>VERBAL</option><option>APELACIÓN</option><option>CASACIÓN</option><option>EJECUCIÓN</option><option>PIEZA SEPARADA</option><option>CONCURSO</option></select></div><div class="fg"><label>Número Proc.</label><input id="nf_ev_num" type="text"></div><div class="fg"><label>Año</label><input id="nf_ev_anio" type="text" placeholder="2026"></div></div><div class="fgr c3"><div class="fg"><label>Neg.</label><input id="nf_ev_neg" type="text" placeholder="T4, C1..."></div><div class="fg"><label>Organismo</label><select id="nf_ev_org" onchange="if(this.value==='__custom__'){var ci=prompt('Introduzca el órgano judicial:');if(ci){var opt=document.createElement('option');opt.value=ci;opt.text=ci;opt.selected=true;this.insertBefore(opt,this.lastElementChild);}else{this.value='';}}"><option value="">—</option><option>T.I. Sección Contencioso-Adva.</option><option>T.I. Sección Social</option><option>T.I. Sección Civil</option><option>T.I. Sección Mercantil</option><option>T.I. Sección Penal</option><option>TSJA CONTENCIOSO</option><option>TSJA SOCIAL</option><option>TS CONTENCIOSO</option><option>TS SOCIAL</option><option value="__custom__">✏ Otro…</option></select></div><div class="fg"><label>Plaza/nº/Secc</label><input id="nf_ev_secc" type="text" placeholder="nº o sección"></div></div><div class="fgr c3"><div class="fg"><label>Localidad</label><input id="nf_ev_loc" type="text" value="Jaén"></div><div class="fg"><label>Fecha Sentencia</label><input id="nf_ev_fSent" type="date"></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_ev_firme"><label for="nf_ev_firme" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Firme</label></div></div></div></div></div><div class="cd"><div class="chh"><h3>Terceros Vinculados</h3><button class="bt bt-n" style="font-size:11px;padding:3px 10px" onclick="_ntShowNewForm()">+ Crear tercero nuevo</button></div><div class="cb"><div style="margin-bottom:12px"><label style="display:block;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--tl);margin-bottom:2px">Buscar tercero existente</label><div style="position:relative"><input id="nf_tsearch_q" type="text" placeholder="Nombre, razón social, DNI/CIF, abogado, procurador…" style="width:100%;padding:8px 12px;border:1px solid var(--bd);border-radius:6px;font-size:12.5px;font-family:'Source Sans 3',sans-serif;background:var(--cr);color:var(--tx)" oninput="_ntSearchAndRender()" onfocus="_ntSearchAndRender()"><div id="nf_tsearch_results" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--wh);border:1px solid var(--go);border-radius:0 0 8px 8px;box-shadow:0 6px 20px rgba(0,0,0,.12);max-height:280px;overflow-y:auto;display:none"></div></div></div><div id="nf_tercs_list"><div style="padding:12px;color:var(--tm);font-size:11.5px;text-align:center">Utilice el buscador superior para añadir terceros</div></div></div></div><div class="fa"><button class="bt bt-o" onclick="go('proc')">Cancelar</button><button class="bt bt-n" onclick="saveN()">Guardar</button></div>`;}
-function saveN(){const g=id=>document.getElementById(id);const d=g('nf_d').value.trim();if(!d){alert('Descripción obligatoria.');g('nf_d').focus();return;}const evOrg=g('nf_ev_org').value==='__custom__'?'':g('nf_ev_org').value;const evSecc=g('nf_ev_secc').value;const evLoc=g('nf_ev_loc').value;const evClase=g('nf_ev_clase').value;const evNum=g('nf_ev_num').value;const evAnio=g('nf_ev_anio').value;const evFSent=g('nf_ev_fSent').value;const evFirme=g('nf_ev_firme').checked?'1':'';const ev0=[evOrg,evSecc,evLoc,evNum,evAnio,evClase,'',evFSent,evFirme,'','',''];const hasEv=evOrg||evNum||evClase;const nigVal=g('nf_nig').value.trim();const newProc={admin:g('nf_a').value,calidad:g('nf_c').value,estado:g('nf_e').value,desc:d,negociado:g('nf_n').value,letrado:g('nf_l').value,resultado:g('nf_re').value,cuantia:g('nf_cu').value||'',inicio:g('nf_fi').value||'',cierre:g('nf_fc').value||'',notas:g('nf_no').value,finalizado:g('nf_fin').checked?'1':'',ref:g('nf_r').value,cuantiaIndet:g('nf_ci').checked?'1':'',acceso:g('nf_acc').value,accesoEjec:g('nf_accE').value,perjP:g('nf_pP').value||'',perjI:g('nf_pI').value||'',perjC:g('nf_pC').value||'',nig:nigVal,eventos:hasEv?[ev0]:[]};DB.p.unshift(newProc);if(_newTercs.length>0&&nigVal){_newTercs.forEach(function(t){DB.t.push({id:'',condicion:t.condicion||'',ap1:t.ap1||'',ap2:t.ap2||'',nombre:t.nombre||'',razon:t.razon||'',dni:t.dni||'',repLegal:t.repLegal||'',abogado:t.abogado||'',procurador:t.procurador||'',nig:nigVal});});}_newTercs=[];if(syncStatus==='online'){if(confirm('Procedimiento registrado.\n\n¿Desea guardar los cambios en SharePoint?'))saveToSharePoint();}else{alert('Registrado (datos en sesión).\nConecte a SharePoint para guardar permanentemente.');}go('proc');}
+function saveN(){const g=id=>document.getElementById(id);const d=g('nf_d').value.trim();if(!d){alert('Descripción obligatoria.');g('nf_d').focus();return;}const evOrg=g('nf_ev_org').value==='__custom__'?'':g('nf_ev_org').value;const evSecc=g('nf_ev_secc').value;const evLoc=g('nf_ev_loc').value;const evClase=g('nf_ev_clase').value;const evNum=g('nf_ev_num').value;const evAnio=g('nf_ev_anio').value;const evFSent=g('nf_ev_fSent').value;const evFirme=g('nf_ev_firme').checked?'1':'';const ev0=[evOrg,evSecc,evLoc,evNum,evAnio,evClase,'',evFSent,evFirme,'','',''];const hasEv=evOrg||evNum||evClase;const nigVal=g('nf_nig').value.trim();const newProc={admin:g('nf_a').value,calidad:g('nf_c').value,estado:g('nf_e').value,desc:d,negociado:g('nf_n').value,letrado:g('nf_l').value,resultado:g('nf_re').value,cuantia:g('nf_cu').value||'',inicio:g('nf_fi').value||'',cierre:g('nf_fc').value||'',notas:g('nf_no').value,finalizado:g('nf_fin').checked?'1':'',ref:g('nf_r').value,cuantiaIndet:g('nf_ci').checked?'1':'',acceso:g('nf_acc').value,accesoEjec:g('nf_accE').value,perjP:g('nf_pP').value||'',perjI:g('nf_pI').value||'',perjC:g('nf_pC').value||'',nig:nigVal,eventos:hasEv?[ev0]:[]};DB.p.unshift(newProc);if(_newTercs.length>0&&nigVal){_newTercs.forEach(function(t){DB.t.push({id:'',condicion:t.condicion||'',ap1:t.ap1||'',ap2:t.ap2||'',nombre:t.nombre||'',razon:t.razon||'',dni:t.dni||'',repLegal:t.repLegal||'',abogado:t.abogado||'',procurador:t.procurador||'',nig:nigVal});});}_newTercs=[];
+// Auto-create folder in OneDrive for the new procedure
+createFolderForNewProc(newProc).then(()=>{console.log('[SJ Folders] Folder creation completed for new proc.');}).catch(e=>{console.warn('[SJ Folders] Auto-create folder failed:',e.message);});
+if(syncStatus==='online'){if(confirm('Procedimiento registrado.\n\n¿Desea guardar los cambios en SharePoint?'))saveToSharePoint();}else{alert('Registrado (datos en sesión).\nConecte a SharePoint para guardar permanentemente.');}go('proc');}
 
 // ===== SHAREPOINT SYNC MODULE =====
 // Configuration - Luis needs to fill in CLIENT_ID after Azure AD app registration
@@ -1424,6 +1430,255 @@ async function graphPatch(url, body) {
   });
   if (!resp.ok) throw new Error(`Graph API ${resp.status}: ${resp.statusText}`);
   return resp.json();
+}
+
+// Graph PUT helper (for creating folders)
+async function graphPut(url, body) {
+  const resp = await fetch('https://graph.microsoft.com/v1.0' + url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + graphToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) throw new Error(`Graph API ${resp.status}: ${resp.statusText}`);
+  return resp.json();
+}
+
+// ===== ONEDRIVE FOLDER LINKS FOR PROCEDURES =====
+
+// Map clase + organo to OneDrive folder path components
+function _folderClasePrefix(clase) {
+  if (!clase) return '';
+  const c = clase.toUpperCase();
+  if (c === 'ABREVIADO') return 'PA';
+  if (c === 'ORDINARIO') return 'PO';
+  if (c === 'P.O. LABORAL') return 'AUTOS';
+  if (c === 'VERBAL') return 'JV';
+  if (c === 'MONITORIO') return 'MON';
+  if (c === 'APELACIÓN') return 'APELACIÓN';
+  if (c === 'CASACIÓN') return 'CASACIÓN';
+  if (c === 'EJECUCIÓN') return 'EJEC';
+  if (c === 'PIEZA SEPARADA') return 'PS';
+  if (c === 'CONCURSO') return 'CONCURSO ORDINARIO';
+  return clase;
+}
+
+function _folderJuzgado(organo, seccion) {
+  if (!organo) return '';
+  const o = organo.toUpperCase();
+  if (o.includes('CONTENCIOSO') && o.includes('T.I')) return 'JC' + (seccion || '');
+  if (o.includes('SOCIAL') && o.includes('T.I')) return 'SOCIAL ' + (seccion || '');
+  if (o.includes('CIVIL') && o.includes('T.I')) return 'CIVIL ' + (seccion || '');
+  if (o.includes('MERCANTIL') && o.includes('T.I')) return 'MERCANTIL ' + (seccion || '');
+  if (o.includes('PENAL') && o.includes('T.I')) return 'PENAL ' + (seccion || '');
+  if (o.includes('TSJA')) return 'TSJA';
+  if (o.includes('TS ')) return 'TS';
+  return organo;
+}
+
+function _folderJurisdiccion(organo) {
+  if (!organo) return 'CONTENCIOSOS (2018 y ss)';
+  const o = organo.toUpperCase();
+  if (o.includes('CONTENCIOSO')) return 'CONTENCIOSOS (2018 y ss)';
+  if (o.includes('SOCIAL')) return 'SOCIAL';
+  if (o.includes('MERCANTIL') || o.includes('CONCURSO')) return 'CONCURSOS';
+  if (o.includes('PENAL')) return 'PENALES';
+  if (o.includes('CIVIL')) return 'CIVIL';
+  return 'CONTENCIOSOS (2018 y ss)';
+}
+
+function _folderSubtipo(clase) {
+  if (!clase) return null;
+  const c = clase.toUpperCase();
+  if (c === 'ABREVIADO') return 'Procedimientos abreviados';
+  if (c === 'ORDINARIO') return 'Procedimientos ordinarios';
+  return null;
+}
+
+// Build the expected folder name for a given evento (e.g. "PA 108-26")
+function _buildFolderName(ev) {
+  if (!ev || !ev.numProc) return '';
+  const prefix = _folderClasePrefix(ev.clase);
+  const num = ev.numProc;
+  const anio = (ev.anio || '').replace(/^20/, '');
+  return prefix + ' ' + num + '-' + anio;
+}
+
+// Cache for folder search results: { key -> { webUrl, id, ... } }
+const _folderCache = {};
+
+// Search OneDrive for a folder matching the evento data
+async function findEvFolder(ev) {
+  if (!graphToken || !ev || !ev.numProc) return null;
+  const folderName = _buildFolderName(ev);
+  if (!folderName) return null;
+  const cacheKey = folderName.toLowerCase();
+  if (_folderCache[cacheKey] !== undefined) return _folderCache[cacheKey];
+  try {
+    const driveBase = window._driveBase || '/me/drive/root:';
+    // Use search API to find the folder
+    const searchUrl = driveBase.includes('/drives/') 
+      ? driveBase.replace('/root:', '') + "/root/search(q='" + encodeURIComponent(folderName) + "')"
+      : "/me/drive/root/search(q='" + encodeURIComponent(folderName) + "')";
+    const result = await graphGet(searchUrl);
+    if (result.value && result.value.length > 0) {
+      // Find the best match: must be a folder inside /PROCEDIMIENTOS/ and name must match
+      const match = result.value.find(item => 
+        item.folder && 
+        item.name && item.name.toUpperCase().startsWith(folderName.toUpperCase()) &&
+        item.parentReference && item.parentReference.path && 
+        item.parentReference.path.toUpperCase().includes('/PROCEDIMIENTOS/')
+      );
+      if (match) {
+        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
+        return _folderCache[cacheKey];
+      }
+    }
+    _folderCache[cacheKey] = null;
+    return null;
+  } catch (e) {
+    console.warn('[SJ Folders] Search failed for "' + folderName + '":', e.message);
+    _folderCache[cacheKey] = null;
+    return null;
+  }
+}
+
+// Create folder structure in OneDrive for a given evento
+async function createEvFolder(ev) {
+  if (!graphToken || !ev || !ev.numProc) return null;
+  const folderName = _buildFolderName(ev);
+  if (!folderName) return null;
+  try {
+    const driveBase = window._driveBase || '/me/drive/root:';
+    const jurisdiccion = _folderJurisdiccion(ev.organo);
+    const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
+    const juzgado = _folderJuzgado(ev.organo, ev.seccion);
+    const subtipo = _folderSubtipo(ev.clase);
+    
+    // Build full path: /PROCEDIMIENTOS/{jurisdiccion}/{año}/{juzgado}[/{subtipo}]/{folderName}
+    let path = '/PROCEDIMIENTOS/' + jurisdiccion + '/' + anioFull;
+    if (juzgado) path += '/' + juzgado;
+    if (subtipo) path += '/' + subtipo;
+    path += '/' + folderName;
+    
+    // Create folder using Graph API (PUT with conflict behavior = rename)
+    const createUrl = driveBase + path + ':/';
+    const folder = await graphPut(createUrl, {
+      name: folderName,
+      folder: {},
+      '@microsoft.graph.conflictBehavior': 'fail'
+    });
+    
+    // Create subfolders: "Docum interna" and "Enviar al juzgado"
+    if (folder && folder.id) {
+      const driveId = folder.parentReference ? folder.parentReference.driveId : null;
+      const childBase = driveId 
+        ? '/drives/' + driveId + '/items/' + folder.id + '/children'
+        : '/me/drive/items/' + folder.id + '/children';
+      try {
+        await fetch('https://graph.microsoft.com/v1.0' + childBase, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Docum interna', folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+        });
+        await fetch('https://graph.microsoft.com/v1.0' + childBase, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'Enviar al juzgado', folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+        });
+      } catch (subErr) {
+        console.warn('[SJ Folders] Could not create subfolders:', subErr.message);
+      }
+    }
+    
+    const cacheKey = folderName.toLowerCase();
+    _folderCache[cacheKey] = { webUrl: folder.webUrl, id: folder.id, name: folder.name };
+    return _folderCache[cacheKey];
+  } catch (e) {
+    // If 409 Conflict, the folder already exists — try to find it
+    if (e.message && e.message.includes('409')) {
+      return await findEvFolder(ev);
+    }
+    console.error('[SJ Folders] Create failed for evento:', e.message);
+    return null;
+  }
+}
+
+// Find or create folder for an evento
+async function findOrCreateEvFolder(ev) {
+  const found = await findEvFolder(ev);
+  if (found) return found;
+  return await createEvFolder(ev);
+}
+
+// Render folder links for all eventos of a procedure — called from the detail view
+// Returns HTML string with links, or a loading placeholder
+function rFolderLinks(pidx) {
+  const p = DB.p[pidx];
+  if (!p) return '';
+  const evs = getAllEv(p);
+  if (evs.length === 0) return '';
+  
+  const containerId = '_flinks_' + pidx;
+  
+  // Trigger async search after render
+  setTimeout(() => {
+    const el = document.getElementById(containerId);
+    if (!el || el.dataset.loaded === '1') return;
+    el.dataset.loaded = '1';
+    
+    if (!graphToken) {
+      el.innerHTML = '<div style="font-size:10.5px;color:var(--tm);padding:4px 0">Conecte a SharePoint para ver enlaces a carpetas</div>';
+      return;
+    }
+    
+    el.innerHTML = '<div style="font-size:10.5px;color:var(--bl);padding:4px 0">🔍 Buscando carpetas en OneDrive…</div>';
+    
+    (async () => {
+      let html = '';
+      for (let i = 0; i < evs.length; i++) {
+        const ev = evs[i];
+        if (!ev.numProc && !ev.clase) continue;
+        const folderName = _buildFolderName(ev);
+        if (!folderName) continue;
+        
+        const result = await findOrCreateEvFolder(ev);
+        const instLabel = evs.length > 1 
+          ? (ev.organo ? ev.organo + (ev.seccion ? ' nº ' + ev.seccion : '') + ' · ' : '') + folderName
+          : folderName;
+        
+        if (result && result.webUrl) {
+          html += '<a href="' + result.webUrl + '" target="_blank" rel="noopener" ' +
+            'style="display:inline-flex;align-items:center;gap:5px;margin:3px 6px 3px 0;padding:4px 10px;' +
+            'font-size:11px;color:var(--ny);background:rgba(197,160,85,.1);border:1px solid var(--go);' +
+            'border-radius:6px;text-decoration:none;font-weight:500;transition:all .15s" ' +
+            'onmouseover="this.style.background=\'rgba(197,160,85,.25)\'" ' +
+            'onmouseout="this.style.background=\'rgba(197,160,85,.1)\'">' +
+            '📁 ' + instLabel + '</a>';
+        } else {
+          html += '<span style="display:inline-flex;align-items:center;gap:4px;margin:3px 6px 3px 0;' +
+            'padding:4px 10px;font-size:11px;color:var(--tm);background:var(--cr);border:1px solid var(--bd);' +
+            'border-radius:6px">⚠ ' + folderName + ' — no encontrada</span>';
+        }
+      }
+      el.innerHTML = html || '<div style="font-size:10.5px;color:var(--tm);padding:4px 0">Sin instancias con datos suficientes para localizar carpetas</div>';
+    })();
+  }, 50);
+  
+  return '<div id="' + containerId + '" data-loaded="0"><div style="font-size:10.5px;color:var(--tm);padding:4px 0">Cargando enlaces…</div></div>';
+}
+
+// Create folder for a newly registered procedure (called from saveN)
+async function createFolderForNewProc(proc) {
+  if (!graphToken || syncStatus !== 'online') return;
+  const evs = getAllEv(proc);
+  for (const ev of evs) {
+    if (ev.numProc || ev.clase) {
+      await findOrCreateEvFolder(ev);
+    }
+  }
 }
 
 // Read Excel from OneDrive
