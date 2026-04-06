@@ -131,7 +131,7 @@ const tK=['id','condicion','ap1','ap2','nombre','razon','dni','repLegal','abogad
 const rK=['organo','numJuz','ciudad','tipo','numProced','anio','negociado','asunto','demandante','demandado','letrado','resultado','notas','ref'];
 const cK=['id','nig','fecha','concepto','subconcepto','importe','importeRec','fechaInforme'];
 const gK=['id','nig','fecha','concepto','subconcepto','ejercicio','importe'];
-const mk=(ks,x)=>{const o={};ks.forEach((k,i)=>{o[k]=i<x.length?x[i]||'':'';});return o;};
+const mk=(ks,x)=>{const o={};ks.forEach((k,i)=>{let v=i<x.length?x[i]||'':'';if((k==='nig'||k==='id'||k==='dni')&&typeof v==='number')v=v.toFixed(0);o[k]=v;});return o;};
 DB.p=raw.p.map(x=>mk(pK,x));DB.t=raw.t.map(x=>mk(tK,x));DB.r=raw.r.map(x=>mk(rK,x));
 DB.c=(raw.c||[]).map(x=>mk(cK,x));DB.g=(raw.g||[]).map(x=>mk(gK,x));
 DB.p.forEach(p=>{if(p.negociado)p.negociado=normNeg(p.negociado);});
@@ -1485,7 +1485,25 @@ function applySheetData(sheet, headers, rows) {
 
   function toObj(keys, row) {
     const o = {};
-    keys.forEach((k, i) => { o[k] = (i < row.length && row[i] != null) ? String(row[i]) : ''; });
+    keys.forEach((k, i) => {
+      if (i < row.length && row[i] != null) {
+        let v = row[i];
+        // Protect NIG and other ID fields from numeric precision loss
+        if (k === 'nig' || k === 'id' || k === 'dni') {
+          if (typeof v === 'number') {
+            // Number has lost precision if > 2^53; flag it but convert as-is
+            v = v.toFixed(0);
+          } else {
+            v = String(v).trim();
+          }
+        } else {
+          v = String(v);
+        }
+        o[k] = v;
+      } else {
+        o[k] = '';
+      }
+    });
     return o;
   }
 
@@ -1577,6 +1595,18 @@ async function writeSheet(sheetName, headers, rows) {
     );
   } catch(e) { /* ignore clear errors */ }
   
+  // Format NIG column(s) as text BEFORE writing data to prevent numeric conversion
+  const nigColIdx = headers.indexOf('NIG');
+  if (nigColIdx >= 0) {
+    const colLetter = String.fromCharCode(65 + nigColIdx);
+    try {
+      await graphPatch(
+        `${window._driveBase||'/me/drive/root:'}${GRAPH_CONFIG.excelPath}:/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${colLetter}1:${colLetter}${allRows.length}')`,
+        { numberFormat: Array(allRows.length).fill(['@']) }
+      );
+    } catch(e) { console.warn('[SJ Sync] Could not set NIG column format:', e.message); }
+  }
+
   // Write new data
   await graphPatch(
     `${window._driveBase||'/me/drive/root:'}${GRAPH_CONFIG.excelPath}:/workbook/worksheets('${encodeURIComponent(sheetName)}')/range(address='${range}')`,
