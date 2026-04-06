@@ -1511,13 +1511,26 @@ const _folderCache = {};
 async function _tryPath(folderPath) {
   try {
     const driveBase = window._driveBase || '/me/drive/root:';
-    const data = await graphGet(driveBase + folderPath + ':/');
-    if (data && data.id && data.folder) {
-      return { webUrl: data.webUrl, id: data.id, name: data.name };
+    const url = driveBase + folderPath + ':/';
+    const data = await graphGet(url);
+    if (data && data.id) {
+      return { webUrl: data.webUrl, id: data.id, name: data.name, parentReference: data.parentReference };
     }
     return null;
   } catch(e) {
     return null; // 404 = doesn't exist
+  }
+}
+
+// Helper: list children of a folder path, return array of {name,webUrl,id,folder}
+async function _listChildren(folderPath) {
+  try {
+    const driveBase = window._driveBase || '/me/drive/root:';
+    const url = driveBase + folderPath + ':/children?$top=200&$select=name,webUrl,id,folder';
+    const data = await graphGet(url);
+    return (data && data.value) ? data.value : [];
+  } catch(e) {
+    return [];
   }
 }
 
@@ -1533,37 +1546,45 @@ async function findEvFolder(ev) {
   const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
   const juzgado = _folderJuzgado(ev.organo, ev.seccion);
   const subtipos = _folderSubtipos(ev.clase);
+  const fnUpper = folderName.toUpperCase();
 
-  // Strategy 1: Try direct path navigation (fastest and most reliable)
-  // Try with each possible subtipo variant (casing differences across years)
+  // Strategy 1: List the children of the expected parent directory and match by prefix.
+  // This handles folders like "PA 75-26 (52-26-AJ)" when we search for "PA 75-26".
+  const parentPaths = [];
+  // Build possible parent paths (with and without subtipo, different casing variants)
+  const basePath = '/PROCEDIMIENTOS/' + jurisdiccion + '/' + anioFull + (juzgado ? '/' + juzgado : '');
   if (subtipos.length > 0) {
-    for (const sub of subtipos) {
-      const path = '/PROCEDIMIENTOS/' + jurisdiccion + '/' + anioFull + 
-        (juzgado ? '/' + juzgado : '') + '/' + sub + '/' + folderName;
-      const result = await _tryPath(path);
-      if (result) { _folderCache[cacheKey] = result; return result; }
+    for (const sub of subtipos) parentPaths.push(basePath + '/' + sub);
+  }
+  parentPaths.push(basePath); // also try without subtipo
+
+  for (const parentPath of parentPaths) {
+    const children = await _listChildren(parentPath);
+    if (children.length > 0) {
+      // Find child whose name starts with our folderName (case-insensitive)
+      const match = children.find(c => c.folder && c.name && c.name.toUpperCase().startsWith(fnUpper));
+      if (match) {
+        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
+        return _folderCache[cacheKey];
+      }
     }
   }
-  // Also try without subtipo (some jurisdictions don't use it)
-  {
-    const path = '/PROCEDIMIENTOS/' + jurisdiccion + '/' + anioFull + 
-      (juzgado ? '/' + juzgado : '') + '/' + folderName;
-    const result = await _tryPath(path);
-    if (result) { _folderCache[cacheKey] = result; return result; }
-  }
 
-  // Strategy 2: Fallback to search API (handles non-standard paths, renamed folders, etc.)
+  // Strategy 2: Fallback to Graph search API (handles non-standard paths, old structures, etc.)
   try {
     const driveBase = window._driveBase || '/me/drive/root:';
-    const searchBase = driveBase.includes('/drives/') 
-      ? driveBase.replace('/root:', '') + "/root/search(q='" + encodeURIComponent(folderName) + "')"
-      : "/me/drive/root/search(q='" + encodeURIComponent(folderName) + "')";
-    const result = await graphGet(searchBase);
+    let searchUrl;
+    if (driveBase.includes('/drives/')) {
+      const driveId = driveBase.match(/\/drives\/([^/]+)/)[1];
+      searchUrl = "/drives/" + driveId + "/root/search(q='" + encodeURIComponent(folderName) + "')";
+    } else {
+      searchUrl = "/me/drive/root/search(q='" + encodeURIComponent(folderName) + "')";
+    }
+    const result = await graphGet(searchUrl);
     if (result.value && result.value.length > 0) {
-      // Must be a folder, inside /PROCEDIMIENTOS/, and name must START with our folderName
       const match = result.value.find(item => 
         item.folder && 
-        item.name && item.name.toUpperCase().startsWith(folderName.toUpperCase()) &&
+        item.name && item.name.toUpperCase().startsWith(fnUpper) &&
         item.parentReference && item.parentReference.path && 
         item.parentReference.path.toUpperCase().includes('/PROCEDIMIENTOS/')
       );
