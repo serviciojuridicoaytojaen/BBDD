@@ -1434,8 +1434,12 @@ async function graphPatch(url, body) {
 
 // ===== ONEDRIVE FOLDER LINKS FOR PROCEDURES =====
 
-// Map clase to folder name prefix (e.g. ABREVIADO -> PA)
-function _folderClasePrefix(clase) {
+// Build search terms from evento data. Thinks like a human:
+// A "PA 114-26" folder is named starting with "PA 114-26" (may have suffix like "(59-26-AJ)")
+// A "PO 358-26" folder starts with "PO 358-26"
+// Concursos: "CONCURSO ORDINARIO 766-24"
+// Social: "AUTOS 172-26"
+function _claseToPrefix(clase) {
   if (!clase) return '';
   const c = clase.toUpperCase();
   const map = {
@@ -1446,54 +1450,180 @@ function _folderClasePrefix(clase) {
   return map[c] || clase;
 }
 
-// Map organo + seccion to juzgado folder name (e.g. T.I. Sección Contencioso-Adva. nº 3 -> JC3)
-function _folderJuzgado(organo, seccion) {
-  if (!organo) return '';
-  const o = organo.toUpperCase();
-  if (o.includes('CONTENCIOSO') && o.includes('T.I')) return 'JC' + (seccion || '');
-  if (o.includes('SOCIAL') && o.includes('T.I')) return 'SOCIAL ' + (seccion || '');
-  if (o.includes('CIVIL') && o.includes('T.I')) return 'CIVIL ' + (seccion || '');
-  if (o.includes('MERCANTIL') && o.includes('T.I')) return 'MERCANTIL ' + (seccion || '');
-  if (o.includes('PENAL') && o.includes('T.I')) return 'PENAL ' + (seccion || '');
-  if (o.includes('TSJA')) return 'TSJA';
-  if (o.includes('TS ')) return 'TS';
-  return organo;
-}
-
-// Map organo to top-level jurisdicción folder
-function _folderJurisdiccion(organo) {
-  if (!organo) return 'CONTENCIOSOS (2018 y ss)';
-  const o = organo.toUpperCase();
-  if (o.includes('CONTENCIOSO') || o.includes('TSJA CONTENCIOSO') || o.includes('TS CONTENCIOSO')) return 'CONTENCIOSOS (2018 y ss)';
-  if (o.includes('SOCIAL') || o.includes('TSJA SOCIAL') || o.includes('TS SOCIAL')) return 'SOCIAL';
-  if (o.includes('MERCANTIL')) return 'CONCURSOS';
-  if (o.includes('PENAL')) return 'PENALES';
-  if (o.includes('CIVIL')) return 'CIVIL';
-  return 'CONTENCIOSOS (2018 y ss)';
-}
-
-// Map clase to sub-type folder (may vary in casing between years)
-function _folderSubtipos(clase) {
-  if (!clase) return [];
-  const c = clase.toUpperCase();
-  if (c === 'ABREVIADO') return ['Procedimientos abreviados','PROCEDIMIENTOS ABREVIADOS'];
-  if (c === 'ORDINARIO') return ['Procedimientos ordinarios','PROCEDIMIENTOS ORDINARIOS'];
-  return [];
-}
-
-// Build the expected folder name for an evento (e.g. "PA 108-26")
-function _buildFolderName(ev) {
+function _buildSearchTerm(ev) {
   if (!ev || !ev.numProc) return '';
-  const prefix = _folderClasePrefix(ev.clase);
+  const prefix = _claseToPrefix(ev.clase);
   const num = ev.numProc;
   const anio = (ev.anio || '').replace(/^20/, '');
   return (prefix + ' ' + num + '-' + anio).trim();
 }
 
-// Cache: key -> { webUrl, id, name } | null
+// Cache: searchTerm -> { webUrl, name } | null
 const _folderCache = {};
 
-// Helper: get the driveId being used (extracted from _driveBase or default)
+// The simplest possible approach: use Graph search to find the folder by name.
+// This is what a human does: type the procedure name in the search box and pick
+// the one that lives inside /PROCEDIMIENTOS/.
+async function findEvFolder(ev) {
+  if (!graphToken || !ev || !ev.numProc) return null;
+  const searchTerm = _buildSearchTerm(ev);
+  if (!searchTerm) return null;
+  const cacheKey = searchTerm.toLowerCase();
+  if (_folderCache[cacheKey] !== undefined) return _folderCache[cacheKey];
+
+  console.log('[SJ Folders] Buscando carpeta: "' + searchTerm + '"');
+
+  try {
+    // Use the Graph search endpoint — same one that syncFromSharePoint already uses successfully
+    const base = (window._driveBase || '/me/drive/root:').replace('/root:', '');
+    // If _driveBase is "/drives/{id}/root:", base becomes "/drives/{id}"
+    // If _driveBase is "/me/drive/root:", base becomes "/me/drive"
+    const searchUrl = (base || '/me/drive') + "/root/search(q='" + encodeURIComponent(searchTerm) + "')?$top=25&$select=name,webUrl,id,folder,parentReference";
+    const data = await graphGet(searchUrl);
+
+    if (data && data.value && data.value.length > 0) {
+      const termUpper = searchTerm.toUpperCase();
+      // Pick the first folder whose name starts with our search term AND lives under /PROCEDIMIENTOS/
+      const match = data.value.find(item =>
+        item.folder &&
+        item.name &&
+        item.name.toUpperCase().startsWith(termUpper) &&
+        item.parentReference &&
+        item.parentReference.path &&
+        item.parentReference.path.toUpperCase().includes('/PROCEDIMIENTOS/')
+      );
+      if (match) {
+        console.log('[SJ Folders] ✓ Encontrada: "' + match.name + '" → ' + match.webUrl);
+        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
+        return _folderCache[cacheKey];
+      } else {
+        console.log('[SJ Folders] ✗ Búsqueda devolvió ' + data.value.length + ' resultados pero ninguno coincide dentro de /PROCEDIMIENTOS/');
+        // Log what we got for debugging
+        data.value.forEach(function(v,i){ console.log('  [' + i + '] ' + (v.folder?'📁':'📄') + ' ' + v.name + ' | path: ' + (v.parentReference?v.parentReference.path:'-')); });
+      }
+    } else {
+      console.log('[SJ Folders] ✗ Sin resultados de búsqueda para "' + searchTerm + '"');
+    }
+  } catch(e) {
+    console.error('[SJ Folders] Error en búsqueda:', e.message);
+  }
+
+  _folderCache[cacheKey] = null;
+  return null;
+}
+
+// Create folder for a procedure (only called explicitly via button or saveN)
+async function createEvFolder(ev) {
+  if (!graphToken || !ev || !ev.numProc) return null;
+  const searchTerm = _buildSearchTerm(ev);
+  if (!searchTerm) return null;
+
+  // First, make sure it doesn't already exist
+  const cacheKey = searchTerm.toLowerCase();
+  delete _folderCache[cacheKey];
+  const existing = await findEvFolder(ev);
+  if (existing) return existing;
+
+  // Determine the folder hierarchy: jurisdiccion / año / juzgado / [subtipo] / nombre
+  const prefix = _getDrivePrefix();
+
+  // Navigate from root to build the parent, creating segments as needed
+  // Step 1: Find or access PROCEDIMIENTOS
+  let procId;
+  try {
+    const pd = await graphGet(prefix + '/root:/PROCEDIMIENTOS');
+    procId = pd.id;
+  } catch(e) {
+    try {
+      const rootKids = await graphGet(prefix + '/root/children?$top=200&$select=name,id,folder');
+      const pf = rootKids.value.find(c => c.folder && c.name === 'PROCEDIMIENTOS');
+      if (pf) procId = pf.id;
+    } catch(e2) {}
+  }
+  if (!procId) { console.error('[SJ Folders] No se encontró carpeta PROCEDIMIENTOS'); return null; }
+
+  // Step 2: Build segments based on the evento data (thinking like a human)
+  const o = (ev.organo || '').toUpperCase();
+  let jurisdiccion = 'CONTENCIOSOS (2018 y ss)';
+  if (o.includes('SOCIAL')) jurisdiccion = 'SOCIAL';
+  else if (o.includes('MERCANTIL')) jurisdiccion = 'CONCURSOS';
+  else if (o.includes('PENAL')) jurisdiccion = 'PENALES';
+  else if (o.includes('CIVIL') && !o.includes('CONTENCIOSO')) jurisdiccion = 'CIVIL';
+
+  const anio = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
+
+  let juzgado = '';
+  if (o.includes('CONTENCIOSO') && o.includes('T.I')) juzgado = 'JC' + (ev.seccion || '');
+  else if (o.includes('SOCIAL') && o.includes('T.I')) juzgado = 'SOCIAL ' + (ev.seccion || '');
+  else if (o.includes('CIVIL') && o.includes('T.I')) juzgado = 'CIVIL ' + (ev.seccion || '');
+  else if (o.includes('MERCANTIL')) juzgado = 'MERCANTIL ' + (ev.seccion || '');
+  else if (o.includes('PENAL')) juzgado = 'PENAL ' + (ev.seccion || '');
+  else if (o.includes('TSJA')) juzgado = 'TSJA';
+  else if (o.includes('TS ')) juzgado = 'TS';
+
+  let subtipo = '';
+  const cl = (ev.clase || '').toUpperCase();
+  if (cl === 'ABREVIADO') subtipo = 'Procedimientos abreviados';
+  else if (cl === 'ORDINARIO') subtipo = 'Procedimientos ordinarios';
+
+  const segments = [jurisdiccion, anio];
+  if (juzgado) segments.push(juzgado);
+  if (subtipo) segments.push(subtipo);
+  segments.push(searchTerm);
+
+  // Create each level, navigating by ID
+  let currentId = procId;
+  let lastItem = null;
+  for (const seg of segments) {
+    // List children and look for this segment
+    const kids = await graphGet(prefix + '/items/' + currentId + '/children?$top=200&$select=name,id,folder,webUrl');
+    const found = kids.value ? kids.value.find(c => c.folder && c.name && c.name.toUpperCase() === seg.toUpperCase()) : null;
+    if (found) {
+      currentId = found.id;
+      lastItem = found;
+    } else {
+      // Create it
+      try {
+        const resp = await fetch('https://graph.microsoft.com/v1.0' + prefix + '/items/' + currentId + '/children', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: seg, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+        });
+        if (resp.ok) {
+          lastItem = await resp.json();
+          currentId = lastItem.id;
+        } else {
+          console.error('[SJ Folders] Error creando "' + seg + '": ' + resp.status);
+          return null;
+        }
+      } catch(e) {
+        console.error('[SJ Folders] Error creando "' + seg + '":', e.message);
+        return null;
+      }
+    }
+  }
+
+  // Create standard subfolders
+  if (lastItem && lastItem.id) {
+    for (const sub of ['Docum interna', 'Enviar al juzgado']) {
+      try {
+        await fetch('https://graph.microsoft.com/v1.0' + prefix + '/items/' + lastItem.id + '/children', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: sub, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+        });
+      } catch(e) { /* ya existe */ }
+    }
+  }
+
+  if (lastItem) {
+    _folderCache[cacheKey] = { webUrl: lastItem.webUrl, id: lastItem.id, name: lastItem.name };
+    return _folderCache[cacheKey];
+  }
+  return null;
+}
+
+// Helper for _getDrivePrefix and createEvFolder
 function _getDrivePrefix() {
   const db = window._driveBase || '/me/drive/root:';
   if (db.includes('/drives/')) {
@@ -1503,256 +1633,55 @@ function _getDrivePrefix() {
   return '/me/drive';
 }
 
-// Helper: list children of a folder by its item ID. Returns array of items.
-async function _childrenById(itemId) {
+// Handle click on "Create folder" button
+async function _createFolderBtn(btn, pidx, evData) {
+  btn.disabled = true;
+  btn.textContent = 'Creando…';
   try {
-    const prefix = _getDrivePrefix();
-    const url = prefix + '/items/' + itemId + '/children?$top=200&$select=name,webUrl,id,folder';
-    const data = await graphGet(url);
-    return (data && data.value) ? data.value : [];
+    const r = await createEvFolder(evData);
+    if (r && r.webUrl) window.open(r.webUrl, '_blank');
   } catch(e) {
-    return [];
+    console.error('[SJ Folders] Error al crear:', e.message);
   }
+  const el = document.getElementById('_flinks_' + pidx);
+  if (el) el.dataset.loaded = '0';
+  R();
 }
 
-// Helper: starting from a known folder ID, navigate down through segments by name.
-// Returns the item {webUrl,id,name} of the final matching folder, or null.
-// nameMatch can be 'exact' or 'startsWith'.
-async function _navigateDown(startId, segmentNames, nameMatch) {
-  let currentId = startId;
-  for (let i = 0; i < segmentNames.length; i++) {
-    const target = segmentNames[i].toUpperCase();
-    const isLast = (i === segmentNames.length - 1);
-    const children = await _childrenById(currentId);
-    let found = null;
-    if (isLast && nameMatch === 'startsWith') {
-      // For the last segment, match by prefix (handles suffixes like "(52-26-AJ)")
-      found = children.find(c => c.folder && c.name && c.name.toUpperCase().startsWith(target));
-    } else {
-      // Exact match (case-insensitive) for intermediate segments
-      found = children.find(c => c.folder && c.name && c.name.toUpperCase() === target);
-    }
-    if (!found) return null;
-    currentId = found.id;
-    if (isLast) return { webUrl: found.webUrl, id: found.id, name: found.name };
-  }
-  return null;
-}
-
-// Cached ID of the PROCEDIMIENTOS root folder (resolved once)
-let _procRootId = null;
-async function _getProcRootId() {
-  if (_procRootId) return _procRootId;
-  try {
-    const prefix = _getDrivePrefix();
-    // Try path-based access — "PROCEDIMIENTOS" has no special characters
-    const data = await graphGet(prefix + '/root:/PROCEDIMIENTOS:/');
-    if (data && data.id) { _procRootId = data.id; return _procRootId; }
-  } catch(e) {
-    // Fallback: list root children and find by name
-    try {
-      const prefix = _getDrivePrefix();
-      const children = await graphGet(prefix + '/root/children?$top=200&$select=name,id,folder');
-      if (children.value) {
-        const proc = children.value.find(c => c.folder && c.name === 'PROCEDIMIENTOS');
-        if (proc) { _procRootId = proc.id; return _procRootId; }
-      }
-    } catch(e2) {}
-  }
-  return null;
-}
-
-// SEARCH: Find existing folder for an evento (does NOT create anything)
-async function findEvFolder(ev) {
-  if (!graphToken || !ev || !ev.numProc) return null;
-  const folderName = _buildFolderName(ev);
-  if (!folderName) return null;
-  const cacheKey = folderName.toLowerCase();
-  if (_folderCache[cacheKey] !== undefined) return _folderCache[cacheKey];
-
-  const procRoot = await _getProcRootId();
-  if (!procRoot) { _folderCache[cacheKey] = null; return null; }
-
-  const jurisdiccion = _folderJurisdiccion(ev.organo);
-  const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
-  const juzgado = _folderJuzgado(ev.organo, ev.seccion);
-  const subtipos = _folderSubtipos(ev.clase);
-  const fnUpper = folderName.toUpperCase();
-
-  // Strategy 1: Navigate by IDs from PROCEDIMIENTOS root
-  // Try with each subtipo variant, then without subtipo
-  const pathVariants = [];
-  for (const sub of subtipos) {
-    const segs = [jurisdiccion, anioFull];
-    if (juzgado) segs.push(juzgado);
-    segs.push(sub);
-    segs.push(folderName); // last segment uses startsWith matching
-    pathVariants.push(segs);
-  }
-  // Also without subtipo
-  {
-    const segs = [jurisdiccion, anioFull];
-    if (juzgado) segs.push(juzgado);
-    segs.push(folderName);
-    pathVariants.push(segs);
-  }
-
-  for (const segs of pathVariants) {
-    const result = await _navigateDown(procRoot, segs, 'startsWith');
-    if (result) {
-      _folderCache[cacheKey] = result;
-      return result;
-    }
-  }
-
-  // Strategy 2: Fallback to Graph search API
-  try {
-    const prefix = _getDrivePrefix();
-    const searchUrl = prefix + "/root/search(q='" + encodeURIComponent(folderName) + "')";
-    const result = await graphGet(searchUrl);
-    if (result.value && result.value.length > 0) {
-      const match = result.value.find(item => 
-        item.folder && 
-        item.name && item.name.toUpperCase().startsWith(fnUpper) &&
-        item.parentReference && item.parentReference.path && 
-        item.parentReference.path.toUpperCase().includes('/PROCEDIMIENTOS/')
-      );
-      if (match) {
-        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
-        return _folderCache[cacheKey];
-      }
-    }
-  } catch (e) {
-    console.warn('[SJ Folders] Search fallback failed for "' + folderName + '":', e.message);
-  }
-
-  _folderCache[cacheKey] = null;
-  return null;
-}
-
-// CREATE: Create the folder structure for an evento (only called explicitly)
-async function createEvFolder(ev) {
-  if (!graphToken || !ev || !ev.numProc) return null;
-  const folderName = _buildFolderName(ev);
-  if (!folderName) return null;
-  
-  // Double-check it doesn't already exist (clear cache first)
-  const cacheKey = folderName.toLowerCase();
-  delete _folderCache[cacheKey];
-  const existing = await findEvFolder(ev);
-  if (existing) return existing;
-
-  try {
-    const prefix = _getDrivePrefix();
-    const procRoot = await _getProcRootId();
-    if (!procRoot) throw new Error('Cannot find PROCEDIMIENTOS root folder');
-    
-    const jurisdiccion = _folderJurisdiccion(ev.organo);
-    const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
-    const juzgado = _folderJuzgado(ev.organo, ev.seccion);
-    const subtipos = _folderSubtipos(ev.clase);
-    const subtipo = subtipos.length > 0 ? subtipos[0] : null;
-    
-    // Build path segments (starting INSIDE PROCEDIMIENTOS)
-    const segments = [jurisdiccion, anioFull];
-    if (juzgado) segments.push(juzgado);
-    if (subtipo) segments.push(subtipo);
-    segments.push(folderName);
-    
-    // Navigate/create level by level using IDs
-    let currentId = procRoot;
-    let lastItem = null;
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const children = await _childrenById(currentId);
-      const found = children.find(c => c.folder && c.name && c.name.toUpperCase() === seg.toUpperCase());
-      if (found) {
-        currentId = found.id;
-        lastItem = found;
-        continue;
-      }
-      // Create this segment via POST to current folder's children
-      const createUrl = prefix + '/items/' + currentId + '/children';
-      const resp = await fetch('https://graph.microsoft.com/v1.0' + createUrl, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: seg, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
-      });
-      if (resp.ok) {
-        lastItem = await resp.json();
-        currentId = lastItem.id;
-      } else if (resp.status === 409) {
-        // Already exists (race condition) — re-list and find it
-        const retry = await _childrenById(currentId);
-        const retryMatch = retry.find(c => c.folder && c.name && c.name.toUpperCase() === seg.toUpperCase());
-        if (retryMatch) { currentId = retryMatch.id; lastItem = retryMatch; }
-        else throw new Error('Conflict but folder not found: ' + seg);
-      } else {
-        throw new Error('Create "' + seg + '" failed: ' + resp.status);
-      }
-    }
-    
-    // Create subfolders in the final folder
-    if (lastItem && lastItem.id) {
-      const createSubUrl = prefix + '/items/' + lastItem.id + '/children';
-      for (const subName of ['Docum interna', 'Enviar al juzgado']) {
-        try {
-          await fetch('https://graph.microsoft.com/v1.0' + createSubUrl, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: subName, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
-          });
-        } catch(e) { /* ignore if already exists */ }
-      }
-    }
-    
-    if (lastItem) {
-      _folderCache[cacheKey] = { webUrl: lastItem.webUrl, id: lastItem.id, name: lastItem.name };
-      return _folderCache[cacheKey];
-    }
-    return null;
-  } catch (e) {
-    console.error('[SJ Folders] Create failed:', e.message);
-    return null;
-  }
-}
-
-// Render folder links for all eventos of a procedure
+// Render folder links in the detail view
 function rFolderLinks(pidx) {
   const p = DB.p[pidx];
   if (!p) return '';
   const evs = getAllEv(p);
   if (evs.length === 0) return '';
-  
+
   const containerId = '_flinks_' + pidx;
-  
-  // Trigger async SEARCH (not create) after render
+
   setTimeout(() => {
     const el = document.getElementById(containerId);
     if (!el || el.dataset.loaded === '1') return;
     el.dataset.loaded = '1';
-    
+
     if (!graphToken) {
       el.innerHTML = '<div style="font-size:10.5px;color:var(--tm);padding:4px 0">Conecte a SharePoint para ver enlaces a carpetas</div>';
       return;
     }
-    
+
     el.innerHTML = '<div style="font-size:10.5px;color:var(--bl);padding:4px 0">🔍 Buscando carpetas en OneDrive…</div>';
-    
+
     (async () => {
       let html = '';
       for (let i = 0; i < evs.length; i++) {
         const ev = evs[i];
         if (!ev.numProc && !ev.clase) continue;
-        const folderName = _buildFolderName(ev);
-        if (!folderName) continue;
-        
-        // SEARCH ONLY — never create when just viewing
+        const searchTerm = _buildSearchTerm(ev);
+        if (!searchTerm) continue;
+
         const result = await findEvFolder(ev);
-        const instLabel = evs.length > 1 
-          ? (ev.organo ? ev.organo + (ev.seccion ? ' nº ' + ev.seccion : '') + ' · ' : '') + folderName
-          : folderName;
-        
+        const instLabel = evs.length > 1
+          ? (ev.organo ? ev.organo + (ev.seccion ? ' nº ' + ev.seccion : '') + ' · ' : '') + searchTerm
+          : searchTerm;
+
         if (result && result.webUrl) {
           html += '<a href="' + result.webUrl + '" target="_blank" rel="noopener" ' +
             'style="display:inline-flex;align-items:center;gap:5px;margin:3px 6px 3px 0;padding:4px 10px;' +
@@ -1762,41 +1691,22 @@ function rFolderLinks(pidx) {
             'onmouseout="this.style.background=\'rgba(197,160,85,.1)\'">' +
             '📁 ' + instLabel + '</a>';
         } else {
-          // Show "no folder" indicator with a create button
           if (!window._pendingEvCreate) window._pendingEvCreate = {};
           const btnId = '_cfbtn_' + pidx + '_' + i;
           window._pendingEvCreate[btnId] = {organo:ev.organo||'',seccion:ev.seccion||'',localidad:ev.localidad||'',numProc:ev.numProc||'',anio:ev.anio||'',clase:ev.clase||''};
           html += '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;' +
             'padding:4px 10px;font-size:11px;color:var(--tl);background:var(--cr);border:1px solid var(--bd);' +
-            'border-radius:6px">' + folderName + ' — sin carpeta ' +
+            'border-radius:6px">' + searchTerm + ' — sin carpeta ' +
             '<button id="' + btnId + '" onclick="_createFolderBtn(this,' + pidx + ',window._pendingEvCreate[\'' + btnId + '\'])" ' +
             'style="background:var(--ny);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit">' +
             '+ Crear carpeta</button></span>';
         }
       }
-      el.innerHTML = html || '<div style="font-size:10.5px;color:var(--tm);padding:4px 0">Sin instancias con datos suficientes para localizar carpetas</div>';
+      el.innerHTML = html || '<div style="font-size:10.5px;color:var(--tm);padding:4px 0">Sin instancias con datos suficientes</div>';
     })();
   }, 50);
-  
-  return '<div id="' + containerId + '" data-loaded="0"><div style="font-size:10.5px;color:var(--tm);padding:4px 0">Cargando enlaces…</div></div>';
-}
 
-// Handle click on "Create folder" button in the detail view
-async function _createFolderBtn(btn, pidx, evData) {
-  btn.disabled = true;
-  btn.textContent = 'Creando…';
-  try {
-    const r = await createEvFolder(evData);
-    if (r && r.webUrl) {
-      window.open(r.webUrl, '_blank');
-    }
-  } catch(e) {
-    console.error('[SJ Folders] Manual create failed:', e.message);
-  }
-  // Reset and re-render folder links
-  const el = document.getElementById('_flinks_' + pidx);
-  if (el) el.dataset.loaded = '0';
-  R();
+  return '<div id="' + containerId + '" data-loaded="0"><div style="font-size:10.5px;color:var(--tm);padding:4px 0">Cargando enlaces…</div></div>';
 }
 
 // Create folder for a newly registered procedure (called from saveN)
