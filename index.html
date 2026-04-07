@@ -1297,7 +1297,7 @@ function recalcEjec(pidx){
   if(el){el.textContent=fNum(tBal);el.style.color=tBal>=0?'var(--gn)':'var(--rd)';}
 }
 // NUEVO
-function rNuevo(){return`<div class="bn"><h2>Nuevo Procedimiento</h2></div><div class="cd"><div class="cb"><div class="ds"><h4>Datos Generales del Procedimiento</h4><div class="fgr c3"><div class="fg"><label>NIG</label><input id="nf_nig" type="text" placeholder="2305042120240xxxx"></div><div class="fg"><label>Ref. MyTao</label><input id="nf_r" type="text"></div><div class="fg"><label>Descripción</label><textarea id="nf_d" rows="2" placeholder="Descripción del procedimiento"></textarea></div></div><div class="fgr c3"><div class="fg"><label>Cuantía del procedimiento (€)</label><input id="nf_cu" type="number" step="0.01"></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_ci" onchange="document.getElementById('nf_cu').disabled=this.checked"><label for="nf_ci" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Cuantía indeterminada</label></div></div><div class="fg"><label>Letrado asignado</label><select id="nf_l"><option value="">—</option>${uv(DB.p,'letrado').map(n=>`<option>${H(n)}</option>`).join('')}</select></div></div><div class="fgr c3"><div class="fg"><label>Instancia actual</label><select id="nf_e"><option value="En Primera Intancia">En Primera Instancia</option><option>En Apelación</option><option>En Casación</option><option>En Ejecución</option><option>Finalizado</option></select></div><div class="fg"><label>Acceso directo al procedimiento</label><input id="nf_acc" type="text" placeholder="URL o referencia"></div><div class="fg"><label>Acceso directo a la ejecución</label><input id="nf_accE" type="text" placeholder="URL o referencia"></div></div></div><div class="dg"><div class="ds"><h4>Administración Actuante</h4><div class="fg"><label>Administración actuante</label><select id="nf_a"><option selected>Ayuntamiento</option><option>Patronato Deportes</option><option>Asuntos Sociales</option><option>Universidad Popular</option><option>GMU</option><option>Cultura</option></select></div><div class="fg"><label>En calidad de</label><select id="nf_c"><option>DEMANDADOS</option><option>DEMANDANTES</option><option>ACREEDOR</option></select></div><div class="fg"><label>Negociado de origen</label><select id="nf_n"><option value="">—</option><option>Responsabilidad Patrimonial</option><option>Personal</option><option>Gestión Tributaria</option><option>Recaudación</option><option>Intervención/Tesorería</option><option>Policía Local</option><option>GMU</option><option>Patronato Mpal. de Cultura</option><option>Universidad Popular Mpal.</option><option>Patronato de Deportes</option><option>Patronato Mpal. de Asuntos Sociales</option><option>IMEFE</option><option>CEE</option><option>Contratación</option><option>Servicio Jurídico</option><option>Alcaldía</option><option>Mercados</option><option>Patrimonio</option><option>Sanidad</option><option>Informática</option></select></div><div class="fg"><label>Notas</label><textarea id="nf_no" rows="2"></textarea></div></div><div class="ds"><h4>Inicio / Fin del Expediente</h4><div class="fgr"><div class="fg"><label>Fecha de inicio</label><input id="nf_fi" type="date"></div><div class="fg"><label>Fecha de cierre</label><input id="nf_fc" type="date"></div></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_fin"><label for="nf_fin" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Finalizado en todas sus instancias</label></div></div><div class="fg"><label>Resultado</label><select id="nf_re"><option value="">Pendiente</option><option>GANADO</option><option>DEMANDA DESESTIMADA</option><option>PERDIDO</option><option>ESTIM. PARCIAL</option><option>DESISTIDO</option><option>ACUERDO</option><option>SATISF. EXTRAPROCESAL</option><option>ARCHIVADO</option></select></div><div class="ds" style="margin-top:8px"><h4>Perjuicio / Beneficio Resultante</h4><div class="fgr c3"><div class="fg"><label>Principal (€)</label><input id="nf_pP" type="number" step="0.01"></div><div class="fg"><label>Intereses (€)</label><input id="nf_pI" type="number" step="0.01"></div><div class="fg"><label>Costas (€)</label><input id="nf_pC" type="number" step="0.01"></div></div></div></div></div></div></div><div class="cd"><div class="chh"><h3>Clase de Procedimiento (1ª Instancia)</h3></div><div class="cb"><div class="fgr c3"><div class="fg"><label>Clase de Procedimiento</label><select id="nf_ev_clase"><option value="">—</option><option>ABREVIADO</option><option>ORDINARIO</option><option>MONITORIO</option><option>P.O. LABORAL</option><option>VERBAL</option><option>APELACIÓN</option><option>CASACIÓN</option><option>EJECUCIÓN</option><option>PIEZA SEPARADA</option><option>CONCURSO</option></select></div><div class="fg"><label>Número Proc.</label><input id="nf_ev_num" type="text"></div><div class="fg"><label>Año</label><input id="nf_ev_anio" type="text" placeholder="2026"></div></div><div class="fgr c3"><div class="fg"><label>Neg.</label><input id="nf_ev_neg" type="text" placeholder="T4, C1..."></div><div class="fg"><label>Organismo</label><select id="nf_ev_org" onchange="if(this.value==='__custom__'){var ci=prompt('Introduzca el órgano judicial:');if(ci){var opt=document.createElement('option');opt.value=ci;opt.text=ci;opt.selected=true;this.insertBefore(opt,this.lastElementChild);}else{this.value='';}}"><option value="">—</option><option>T.I. Sección Contencioso-Adva.</option><option>T.I. Sección Social</option><option>T.I. Sección Civil</option><option>T.I. Sección Mercantil</option><option>T.I. Sección Penal</option><option>TSJA CONTENCIOSO</option><option>TSJA SOCIAL</option><option>TS CONTENCIOSO</option><option>TS SOCIAL</option><option value="__custom__">✏ Otro…</option></select></div><div class="fg"><label>Plaza/nº/Secc</label><input id="nf_ev_secc" type="text" placeholder="nº o sección"></div></div><div class="fgr c3"><div class="fg"><label>Localidad</label><input id="nf_ev_loc" type="text" value="Jaén"></div><div class="fg"><label>Fecha Sentencia</label><input id="nf_ev_fSent" type="date"></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_ev_firme"><label for="nf_ev_firme" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Firme</label></div></div></div></div></div><div class="cd"><div class="chh"><h3>Terceros Vinculados</h3><button class="bt bt-n" style="font-size:11px;padding:3px 10px" onclick="_ntShowNewForm()">+ Crear tercero nuevo</button></div><div class="cb"><div style="margin-bottom:12px"><label style="display:block;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--tl);margin-bottom:2px">Buscar tercero existente</label><div style="position:relative"><input id="nf_tsearch_q" type="text" placeholder="Nombre, razón social, DNI/CIF, abogado, procurador…" style="width:100%;padding:8px 12px;border:1px solid var(--bd);border-radius:6px;font-size:12.5px;font-family:'Source Sans 3',sans-serif;background:var(--cr);color:var(--tx)" oninput="_ntSearchAndRender()" onfocus="_ntSearchAndRender()"><div id="nf_tsearch_results" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--wh);border:1px solid var(--go);border-radius:0 0 8px 8px;box-shadow:0 6px 20px rgba(0,0,0,.12);max-height:280px;overflow-y:auto;display:none"></div></div></div><div id="nf_tercs_list"><div style="padding:12px;color:var(--tm);font-size:11.5px;text-align:center">Utilice el buscador superior para añadir terceros</div></div></div></div><div class="fa"><button class="bt bt-o" onclick="go('proc')">Cancelar</button><button class="bt bt-n" onclick="saveN()">Guardar</button></div>`;}
+function rNuevo(){return`<div class="bn"><h2>Nuevo Procedimiento</h2></div><div class="cd"><div class="cb"><div class="ds"><h4>Datos Generales del Procedimiento</h4><div class="fgr c3"><div class="fg"><label>NIG</label><input id="nf_nig" type="text" placeholder="2305042120240xxxx"></div><div class="fg"><label>Ref. MyTao</label><input id="nf_r" type="text"></div><div class="fg"><label>Descripción</label><textarea id="nf_d" rows="2" placeholder="Descripción del procedimiento"></textarea></div></div><div class="fgr c3"><div class="fg"><label>Cuantía del procedimiento (€)</label><input id="nf_cu" type="number" step="0.01"></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_ci" onchange="document.getElementById('nf_cu').disabled=this.checked"><label for="nf_ci" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Cuantía indeterminada</label></div></div><div class="fg"><label>Letrado asignado</label><select id="nf_l"><option value="">—</option>${uv(DB.p,'letrado').map(n=>`<option>${H(n)}</option>`).join('')}</select></div></div><div class="fgr c3"><div class="fg"><label>Instancia actual</label><select id="nf_e"><option value="En Primera Intancia">En Primera Instancia</option><option>En Apelación</option><option>En Casación</option><option>En Ejecución</option><option>Finalizado</option></select></div><div class="fg"><label>Acceso directo al procedimiento</label><input id="nf_acc" type="text" placeholder="URL o referencia"></div><div class="fg"><label>Acceso directo a la ejecución</label><input id="nf_accE" type="text" placeholder="URL o referencia"></div></div></div><div class="dg"><div class="ds"><h4>Administración Actuante</h4><div class="fg"><label>Administración actuante</label><select id="nf_a"><option selected>Ayuntamiento</option><option>Patronato Deportes</option><option>Asuntos Sociales</option><option>Universidad Popular</option><option>GMU</option><option>Cultura</option></select></div><div class="fg"><label>En calidad de</label><select id="nf_c"><option>DEMANDADOS</option><option>DEMANDANTES</option><option>ACREEDOR</option></select></div><div class="fg"><label>Negociado de origen</label><select id="nf_n"><option value="">—</option><option>Responsabilidad Patrimonial</option><option>Personal</option><option>Gestión Tributaria</option><option>Recaudación</option><option>Intervención/Tesorería</option><option>Policía Local</option><option>GMU</option><option>Patronato Mpal. de Cultura</option><option>Universidad Popular Mpal.</option><option>Patronato de Deportes</option><option>Patronato Mpal. de Asuntos Sociales</option><option>IMEFE</option><option>CEE</option><option>Contratación</option><option>Servicio Jurídico</option><option>Alcaldía</option><option>Mercados</option><option>Patrimonio</option><option>Sanidad</option><option>Informática</option></select></div><div class="fg"><label>Notas</label><textarea id="nf_no" rows="2"></textarea></div></div><div class="ds"><h4>Inicio / Fin del Expediente</h4><div class="fgr"><div class="fg"><label>Fecha de inicio</label><input id="nf_fi" type="date"></div><div class="fg"><label>Fecha de cierre</label><input id="nf_fc" type="date"></div></div><div class="fg"><label>&nbsp;</label><div class="ck"><input type="checkbox" id="nf_fin"><label for="nf_fin" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Finalizado en todas sus instancias</label></div></div><div class="fg"><label>Resultado</label><select id="nf_re"><option value="">Pendiente</option><option>GANADO</option><option>DEMANDA DESESTIMADA</option><option>PERDIDO</option><option>ESTIM. PARCIAL</option><option>DESISTIDO</option><option>ACUERDO</option><option>SATISF. EXTRAPROCESAL</option><option>ARCHIVADO</option></select></div><div class="ds" style="margin-top:8px"><h4>Perjuicio / Beneficio Resultante</h4><div class="fgr c3"><div class="fg"><label>Principal (€)</label><input id="nf_pP" type="number" step="0.01"></div><div class="fg"><label>Intereses (€)</label><input id="nf_pI" type="number" step="0.01"></div><div class="fg"><label>Costas (€)</label><input id="nf_pC" type="number" step="0.01"></div></div></div></div></div></div></div><div class="cd"><div class="chh"><h3>Clase de Procedimiento (1ª Instancia)</h3></div><div class="cb"><div class="fgr c3"><div class="fg"><label>Clase de Procedimiento</label><select id="nf_ev_clase"><option value="">—</option><option>ABREVIADO</option><option>ORDINARIO</option><option>MONITORIO</option><option>P.O. LABORAL</option><option>VERBAL</option><option>APELACIÓN</option><option>CASACIÓN</option><option>EJECUCIÓN</option><option>PIEZA SEPARADA</option><option>CONCURSO</option></select></div><div class="fg"><label>Número Proc.</label><input id="nf_ev_num" type="text"></div><div class="fg"><label>Año</label><input id="nf_ev_anio" type="text" placeholder="2026"></div></div><div class="fgr c3"><div class="fg"><label>Neg.</label><input id="nf_ev_neg" type="text" placeholder="T4, C1..."></div><div class="fg"><label>Organismo</label><select id="nf_ev_org" onchange="if(this.value==='__custom__'){var ci=prompt('Introduzca el órgano judicial:');if(ci){var opt=document.createElement('option');opt.value=ci;opt.text=ci;opt.selected=true;this.insertBefore(opt,this.lastElementChild);}else{this.value='';}}"><option value="">—</option><option>T.I. Sección Contencioso-Adva.</option><option>T.I. Sección Social</option><option>T.I. Sección Civil</option><option>T.I. Sección Mercantil</option><option>T.I. Sección Penal</option><option>TSJA CONTENCIOSO</option><option>TSJA SOCIAL</option><option>TS CONTENCIOSO</option><option>TS SOCIAL</option><option value="__custom__">✏ Otro…</option></select></div><div class="fg"><label>Plaza/nº/Secc</label><input id="nf_ev_secc" type="text" placeholder="nº o sección"></div></div><div class="fgr c3"><div class="fg"><label>Localidad</label><input id="nf_ev_loc" type="text" value="Jaén"></div><div class="fg"><label>Fecha Sentencia</label><input id="nf_ev_fSent" type="date"></div><div class="fg"><label>&nbsp;</label><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="ck"><input type="checkbox" id="nf_ev_firme"><label for="nf_ev_firme" style="font-size:12px;text-transform:none;letter-spacing:0;cursor:pointer">Firme</label></div><button type="button" onclick="_createFolderFromNewForm()" style="background:#c0392b;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10.5px;cursor:pointer;font-family:inherit;white-space:nowrap">+ Crear carpeta en OneDrive</button></div></div></div></div></div><div class="cd"><div class="chh"><h3>Terceros Vinculados</h3><button class="bt bt-n" style="font-size:11px;padding:3px 10px" onclick="_ntShowNewForm()">+ Crear tercero nuevo</button></div><div class="cb"><div style="margin-bottom:12px"><label style="display:block;font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--tl);margin-bottom:2px">Buscar tercero existente</label><div style="position:relative"><input id="nf_tsearch_q" type="text" placeholder="Nombre, razón social, DNI/CIF, abogado, procurador…" style="width:100%;padding:8px 12px;border:1px solid var(--bd);border-radius:6px;font-size:12.5px;font-family:'Source Sans 3',sans-serif;background:var(--cr);color:var(--tx)" oninput="_ntSearchAndRender()" onfocus="_ntSearchAndRender()"><div id="nf_tsearch_results" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--wh);border:1px solid var(--go);border-radius:0 0 8px 8px;box-shadow:0 6px 20px rgba(0,0,0,.12);max-height:280px;overflow-y:auto;display:none"></div></div></div><div id="nf_tercs_list"><div style="padding:12px;color:var(--tm);font-size:11.5px;text-align:center">Utilice el buscador superior para añadir terceros</div></div></div></div><div class="fa"><button class="bt bt-o" onclick="go('proc')">Cancelar</button><button class="bt bt-n" onclick="saveN()">Guardar</button></div>`;}
 function saveN(){const g=id=>document.getElementById(id);const d=g('nf_d').value.trim();if(!d){alert('Descripción obligatoria.');g('nf_d').focus();return;}const evOrg=g('nf_ev_org').value==='__custom__'?'':g('nf_ev_org').value;const evSecc=g('nf_ev_secc').value;const evLoc=g('nf_ev_loc').value;const evClase=g('nf_ev_clase').value;const evNum=g('nf_ev_num').value;const evAnio=g('nf_ev_anio').value;const evFSent=g('nf_ev_fSent').value;const evFirme=g('nf_ev_firme').checked?'1':'';const ev0=[evOrg,evSecc,evLoc,evNum,evAnio,evClase,'',evFSent,evFirme,'','',''];const hasEv=evOrg||evNum||evClase;const nigVal=g('nf_nig').value.trim();const newProc={admin:g('nf_a').value,calidad:g('nf_c').value,estado:g('nf_e').value,desc:d,negociado:g('nf_n').value,letrado:g('nf_l').value,resultado:g('nf_re').value,cuantia:g('nf_cu').value||'',inicio:g('nf_fi').value||'',cierre:g('nf_fc').value||'',notas:g('nf_no').value,finalizado:g('nf_fin').checked?'1':'',ref:g('nf_r').value,cuantiaIndet:g('nf_ci').checked?'1':'',acceso:g('nf_acc').value,accesoEjec:g('nf_accE').value,perjP:g('nf_pP').value||'',perjI:g('nf_pI').value||'',perjC:g('nf_pC').value||'',nig:nigVal,eventos:hasEv?[ev0]:[]};DB.p.unshift(newProc);if(_newTercs.length>0&&nigVal){_newTercs.forEach(function(t){DB.t.push({id:'',condicion:t.condicion||'',ap1:t.ap1||'',ap2:t.ap2||'',nombre:t.nombre||'',razon:t.razon||'',dni:t.dni||'',repLegal:t.repLegal||'',abogado:t.abogado||'',procurador:t.procurador||'',nig:nigVal});});}_newTercs=[];
 // Auto-create folder in OneDrive for the new procedure
 createFolderForNewProc(newProc).then(()=>{console.log('[SJ Folders] Folder creation completed for new proc.');}).catch(e=>{console.warn('[SJ Folders] Auto-create folder failed:',e.message);});
@@ -1634,6 +1634,91 @@ function _getDrivePrefix() {
   return '/me/drive';
 }
 
+// Cache for the PROCEDIMIENTOS folder webUrl
+let _procFolderWebUrl = null;
+
+// Get the webUrl of /PROCEDIMIENTOS/ to use as "Encontrar carpeta" link
+async function _getProcFolderUrl() {
+  if (_procFolderWebUrl) return _procFolderWebUrl;
+  if (!graphToken) return null;
+  const prefix = _getDrivePrefix();
+  try {
+    const pd = await graphGet(prefix + '/root:/PROCEDIMIENTOS?$select=webUrl,id');
+    if (pd && pd.webUrl) { _procFolderWebUrl = pd.webUrl; return pd.webUrl; }
+  } catch(e) {
+    try {
+      const rootKids = await graphGet(prefix + '/root/children?$top=200&$select=name,id,folder,webUrl');
+      const pf = rootKids.value ? rootKids.value.find(c => c.folder && c.name === 'PROCEDIMIENTOS') : null;
+      if (pf && pf.webUrl) { _procFolderWebUrl = pf.webUrl; return pf.webUrl; }
+    } catch(e2) {}
+  }
+  return null;
+}
+
+// Handle manual folder link: user picks the folder URL from the browser address bar and pastes it
+async function _findFolderManual(pidx, evIdx) {
+  const url = prompt(
+    'VINCULAR CARPETA MANUALMENTE\n' +
+    '════════════════════════════════════════\n\n' +
+    '1. Se abrirá la carpeta PROCEDIMIENTOS en OneDrive\n' +
+    '2. Navegue hasta la carpeta del procedimiento\n' +
+    '3. Copie la URL de la barra de direcciones del navegador\n' +
+    '4. Vuelva aquí y péguela a continuación\n\n' +
+    'Pegue la URL de la carpeta:'
+  );
+  if (!url || !url.trim()) return;
+  const trimmed = url.trim();
+  // Store it in the folder cache so it persists during session
+  const p = DB.p[pidx];
+  if (!p) return;
+  const evs = getAllEv(p);
+  const ev = evs[evIdx];
+  if (!ev) return;
+  const searchTerm = _buildSearchTerm(ev);
+  if (searchTerm) {
+    _folderCache[searchTerm.toLowerCase()] = { webUrl: trimmed, id: '', name: searchTerm };
+  }
+  // Re-render
+  const el = document.getElementById('_flinks_' + pidx);
+  if (el) el.dataset.loaded = '0';
+  R();
+}
+
+// Handle "+Crear carpeta en OneDrive" button in the +Nuevo form
+async function _createFolderFromNewForm() {
+  if (!graphToken || syncStatus !== 'online') {
+    alert('Debe conectarse a SharePoint antes de crear carpetas en OneDrive.');
+    return;
+  }
+  const g = id => document.getElementById(id);
+  const evClase = g('nf_ev_clase') ? g('nf_ev_clase').value : '';
+  const evNum = g('nf_ev_num') ? g('nf_ev_num').value : '';
+  const evAnio = g('nf_ev_anio') ? g('nf_ev_anio').value : '';
+  const evOrg = g('nf_ev_org') ? (g('nf_ev_org').value === '__custom__' ? '' : g('nf_ev_org').value) : '';
+  const evSecc = g('nf_ev_secc') ? g('nf_ev_secc').value : '';
+  const evLoc = g('nf_ev_loc') ? g('nf_ev_loc').value : '';
+  if (!evClase || !evNum) {
+    alert('Indique al menos la Clase de Procedimiento y el Número de Proc. para crear la carpeta.');
+    return;
+  }
+  const evData = { organo: evOrg, seccion: evSecc, localidad: evLoc, numProc: evNum, anio: evAnio, clase: evClase };
+  const searchTerm = _buildSearchTerm(evData);
+  if (!searchTerm) { alert('No se pudo determinar el nombre de la carpeta.'); return; }
+  if (!confirm('¿Crear la carpeta «' + searchTerm + '» en OneDrive?')) return;
+  try {
+    const r = await createEvFolder(evData);
+    if (r && r.webUrl) {
+      window.open(r.webUrl, '_blank');
+      alert('Carpeta «' + searchTerm + '» creada correctamente.');
+    } else {
+      alert('No se pudo crear la carpeta. Compruebe los datos.');
+    }
+  } catch(e) {
+    console.error('[SJ Folders] Error al crear carpeta desde +Nuevo:', e.message);
+    alert('Error al crear la carpeta: ' + e.message);
+  }
+}
+
 // Handle click on "Create folder" button
 async function _createFolderBtn(btn, pidx, evData) {
   btn.disabled = true;
@@ -1698,8 +1783,11 @@ function rFolderLinks(pidx) {
           html += '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;' +
             'padding:4px 10px;font-size:11px;color:var(--tl);background:var(--cr);border:1px solid var(--bd);' +
             'border-radius:6px">' + searchTerm + ' — sin carpeta ' +
-            '<button id="' + btnId + '" onclick="_createFolderBtn(this,' + pidx + ',window._pendingEvCreate[\'' + btnId + '\'])" ' +
+            '<button id="_ffbtn_' + pidx + '_' + i + '" onclick="(async function(){var u=await _getProcFolderUrl();if(u)window.open(u,\'_blank\');else alert(\'No se encontró la carpeta PROCEDIMIENTOS en OneDrive.\');_findFolderManual(' + pidx + ',' + i + ');})()" ' +
             'style="background:var(--ny);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit">' +
+            'Encontrar carpeta</button>' +
+            '<button id="' + btnId + '" onclick="_createFolderBtn(this,' + pidx + ',window._pendingEvCreate[\'' + btnId + '\'])" ' +
+            'style="background:#c0392b;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit">' +
             '+ Crear carpeta</button></span>';
         }
       }
