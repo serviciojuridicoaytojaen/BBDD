@@ -1441,13 +1441,30 @@ async function graphPatch(url, body) {
 // Social: "AUTOS 172-26"
 function _claseToPrefix(clase) {
   if (!clase) return '';
-  const c = clase.toUpperCase();
-  const map = {
+  const c = clase.toUpperCase().trim();
+  // Short form (from the UI dropdowns)
+  const shortMap = {
     'ABREVIADO':'PA','ORDINARIO':'PO','P.O. LABORAL':'AUTOS','VERBAL':'JV',
     'MONITORIO':'MON','APELACIÓN':'APELACIÓN','CASACIÓN':'CASACIÓN',
     'EJECUCIÓN':'EJEC','PIEZA SEPARADA':'PS','CONCURSO':'CONCURSO ORDINARIO'
   };
-  return map[c] || clase;
+  if (shortMap[c]) return shortMap[c];
+  // Long form (from the legacy Access data / Excel)
+  if (c.includes('ABREVIADO')) return 'PA';
+  if (c.includes('ORDINARIO') && !c.includes('CONCURSO')) return 'PO';
+  if (c.includes('LABORAL') || c.includes('DESPIDO') || c.includes('SEGURIDAD SOCIAL')) return 'AUTOS';
+  if (c.includes('VERBAL')) return 'JV';
+  if (c.includes('MONITORIO')) return 'MON';
+  if (c.includes('APELACIÓN') || c.includes('RECURSO DE APELACIÓN')) return 'APELACIÓN';
+  if (c.includes('CASACIÓN') || c.includes('RECURSO DE CASACIÓN')) return 'CASACIÓN';
+  if (c.includes('SUPLICACIÓN') || c.includes('RECURSO DE SUPLICACIÓN')) return 'SUPLICACIÓN';
+  if (c.includes('EJECUCION') || c.includes('EJECUCIÓN') || c.includes('EJECUTORIA')) return 'EJEC';
+  if (c.includes('PIEZA')) return 'PS';
+  if (c.includes('CONCURSO')) return 'CONCURSO ORDINARIO';
+  if (c.includes('DILIGENCIAS')) return 'DP';
+  if (c.includes('MEDIDAS CAUTELARES')) return 'MC';
+  // If nothing matched, return the original value — it might already be a folder prefix
+  return clase;
 }
 
 function _buildSearchTerm(ev) {
