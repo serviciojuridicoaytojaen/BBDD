@@ -1432,20 +1432,6 @@ async function graphPatch(url, body) {
   return resp.json();
 }
 
-// Graph PUT helper (for creating folders)
-async function graphPut(url, body) {
-  const resp = await fetch('https://graph.microsoft.com/v1.0' + url, {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'Bearer ' + graphToken,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-  if (!resp.ok) throw new Error(`Graph API ${resp.status}: ${resp.statusText}`);
-  return resp.json();
-}
-
 // ===== ONEDRIVE FOLDER LINKS FOR PROCEDURES =====
 
 // Map clase to folder name prefix (e.g. ABREVIADO -> PA)
@@ -1507,31 +1493,73 @@ function _buildFolderName(ev) {
 // Cache: key -> { webUrl, id, name } | null
 const _folderCache = {};
 
-// Helper: try to GET a folder by exact path. Returns {webUrl,id,name} or null.
-async function _tryPath(folderPath) {
-  try {
-    const driveBase = window._driveBase || '/me/drive/root:';
-    const url = driveBase + folderPath + ':/';
-    const data = await graphGet(url);
-    if (data && data.id) {
-      return { webUrl: data.webUrl, id: data.id, name: data.name, parentReference: data.parentReference };
-    }
-    return null;
-  } catch(e) {
-    return null; // 404 = doesn't exist
+// Helper: get the driveId being used (extracted from _driveBase or default)
+function _getDrivePrefix() {
+  const db = window._driveBase || '/me/drive/root:';
+  if (db.includes('/drives/')) {
+    const driveId = db.match(/\/drives\/([^/]+)/)[1];
+    return '/drives/' + driveId;
   }
+  return '/me/drive';
 }
 
-// Helper: list children of a folder path, return array of {name,webUrl,id,folder}
-async function _listChildren(folderPath) {
+// Helper: list children of a folder by its item ID. Returns array of items.
+async function _childrenById(itemId) {
   try {
-    const driveBase = window._driveBase || '/me/drive/root:';
-    const url = driveBase + folderPath + ':/children?$top=200&$select=name,webUrl,id,folder';
+    const prefix = _getDrivePrefix();
+    const url = prefix + '/items/' + itemId + '/children?$top=200&$select=name,webUrl,id,folder';
     const data = await graphGet(url);
     return (data && data.value) ? data.value : [];
   } catch(e) {
     return [];
   }
+}
+
+// Helper: starting from a known folder ID, navigate down through segments by name.
+// Returns the item {webUrl,id,name} of the final matching folder, or null.
+// nameMatch can be 'exact' or 'startsWith'.
+async function _navigateDown(startId, segmentNames, nameMatch) {
+  let currentId = startId;
+  for (let i = 0; i < segmentNames.length; i++) {
+    const target = segmentNames[i].toUpperCase();
+    const isLast = (i === segmentNames.length - 1);
+    const children = await _childrenById(currentId);
+    let found = null;
+    if (isLast && nameMatch === 'startsWith') {
+      // For the last segment, match by prefix (handles suffixes like "(52-26-AJ)")
+      found = children.find(c => c.folder && c.name && c.name.toUpperCase().startsWith(target));
+    } else {
+      // Exact match (case-insensitive) for intermediate segments
+      found = children.find(c => c.folder && c.name && c.name.toUpperCase() === target);
+    }
+    if (!found) return null;
+    currentId = found.id;
+    if (isLast) return { webUrl: found.webUrl, id: found.id, name: found.name };
+  }
+  return null;
+}
+
+// Cached ID of the PROCEDIMIENTOS root folder (resolved once)
+let _procRootId = null;
+async function _getProcRootId() {
+  if (_procRootId) return _procRootId;
+  try {
+    const prefix = _getDrivePrefix();
+    // Try path-based access — "PROCEDIMIENTOS" has no special characters
+    const data = await graphGet(prefix + '/root:/PROCEDIMIENTOS:/');
+    if (data && data.id) { _procRootId = data.id; return _procRootId; }
+  } catch(e) {
+    // Fallback: list root children and find by name
+    try {
+      const prefix = _getDrivePrefix();
+      const children = await graphGet(prefix + '/root/children?$top=200&$select=name,id,folder');
+      if (children.value) {
+        const proc = children.value.find(c => c.folder && c.name === 'PROCEDIMIENTOS');
+        if (proc) { _procRootId = proc.id; return _procRootId; }
+      }
+    } catch(e2) {}
+  }
+  return null;
 }
 
 // SEARCH: Find existing folder for an evento (does NOT create anything)
@@ -1542,44 +1570,45 @@ async function findEvFolder(ev) {
   const cacheKey = folderName.toLowerCase();
   if (_folderCache[cacheKey] !== undefined) return _folderCache[cacheKey];
 
+  const procRoot = await _getProcRootId();
+  if (!procRoot) { _folderCache[cacheKey] = null; return null; }
+
   const jurisdiccion = _folderJurisdiccion(ev.organo);
   const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
   const juzgado = _folderJuzgado(ev.organo, ev.seccion);
   const subtipos = _folderSubtipos(ev.clase);
   const fnUpper = folderName.toUpperCase();
 
-  // Strategy 1: List the children of the expected parent directory and match by prefix.
-  // This handles folders like "PA 75-26 (52-26-AJ)" when we search for "PA 75-26".
-  const parentPaths = [];
-  // Build possible parent paths (with and without subtipo, different casing variants)
-  const basePath = '/PROCEDIMIENTOS/' + jurisdiccion + '/' + anioFull + (juzgado ? '/' + juzgado : '');
-  if (subtipos.length > 0) {
-    for (const sub of subtipos) parentPaths.push(basePath + '/' + sub);
+  // Strategy 1: Navigate by IDs from PROCEDIMIENTOS root
+  // Try with each subtipo variant, then without subtipo
+  const pathVariants = [];
+  for (const sub of subtipos) {
+    const segs = [jurisdiccion, anioFull];
+    if (juzgado) segs.push(juzgado);
+    segs.push(sub);
+    segs.push(folderName); // last segment uses startsWith matching
+    pathVariants.push(segs);
   }
-  parentPaths.push(basePath); // also try without subtipo
+  // Also without subtipo
+  {
+    const segs = [jurisdiccion, anioFull];
+    if (juzgado) segs.push(juzgado);
+    segs.push(folderName);
+    pathVariants.push(segs);
+  }
 
-  for (const parentPath of parentPaths) {
-    const children = await _listChildren(parentPath);
-    if (children.length > 0) {
-      // Find child whose name starts with our folderName (case-insensitive)
-      const match = children.find(c => c.folder && c.name && c.name.toUpperCase().startsWith(fnUpper));
-      if (match) {
-        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
-        return _folderCache[cacheKey];
-      }
+  for (const segs of pathVariants) {
+    const result = await _navigateDown(procRoot, segs, 'startsWith');
+    if (result) {
+      _folderCache[cacheKey] = result;
+      return result;
     }
   }
 
-  // Strategy 2: Fallback to Graph search API (handles non-standard paths, old structures, etc.)
+  // Strategy 2: Fallback to Graph search API
   try {
-    const driveBase = window._driveBase || '/me/drive/root:';
-    let searchUrl;
-    if (driveBase.includes('/drives/')) {
-      const driveId = driveBase.match(/\/drives\/([^/]+)/)[1];
-      searchUrl = "/drives/" + driveId + "/root/search(q='" + encodeURIComponent(folderName) + "')";
-    } else {
-      searchUrl = "/me/drive/root/search(q='" + encodeURIComponent(folderName) + "')";
-    }
+    const prefix = _getDrivePrefix();
+    const searchUrl = prefix + "/root/search(q='" + encodeURIComponent(folderName) + "')";
     const result = await graphGet(searchUrl);
     if (result.value && result.value.length > 0) {
       const match = result.value.find(item => 
@@ -1614,65 +1643,66 @@ async function createEvFolder(ev) {
   if (existing) return existing;
 
   try {
-    const driveBase = window._driveBase || '/me/drive/root:';
+    const prefix = _getDrivePrefix();
+    const procRoot = await _getProcRootId();
+    if (!procRoot) throw new Error('Cannot find PROCEDIMIENTOS root folder');
+    
     const jurisdiccion = _folderJurisdiccion(ev.organo);
     const anioFull = (ev.anio || '').length === 2 ? '20' + ev.anio : (ev.anio || new Date().getFullYear().toString());
     const juzgado = _folderJuzgado(ev.organo, ev.seccion);
     const subtipos = _folderSubtipos(ev.clase);
-    // For new folders use the first (capitalized) variant
     const subtipo = subtipos.length > 0 ? subtipos[0] : null;
     
-    // Build path segments and create each level if needed
-    const segments = ['PROCEDIMIENTOS', jurisdiccion, anioFull];
+    // Build path segments (starting INSIDE PROCEDIMIENTOS)
+    const segments = [jurisdiccion, anioFull];
     if (juzgado) segments.push(juzgado);
     if (subtipo) segments.push(subtipo);
     segments.push(folderName);
     
-    // Ensure each segment exists by navigating/creating level by level
-    let currentPath = '';
+    // Navigate/create level by level using IDs
+    let currentId = procRoot;
     let lastItem = null;
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
-      currentPath += '/' + seg;
-      const exists = await _tryPath(currentPath);
-      if (exists) {
-        lastItem = exists;
+      const children = await _childrenById(currentId);
+      const found = children.find(c => c.folder && c.name && c.name.toUpperCase() === seg.toUpperCase());
+      if (found) {
+        currentId = found.id;
+        lastItem = found;
         continue;
       }
-      // Create this segment: POST to parent's children
-      const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-      const parentUrl = parentPath 
-        ? driveBase + parentPath + ':/children'
-        : driveBase.replace(':','') + '/children'; // root level
-      const resp = await fetch('https://graph.microsoft.com/v1.0' + parentUrl, {
+      // Create this segment via POST to current folder's children
+      const createUrl = prefix + '/items/' + currentId + '/children';
+      const resp = await fetch('https://graph.microsoft.com/v1.0' + createUrl, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: seg, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
       });
       if (resp.ok) {
         lastItem = await resp.json();
+        currentId = lastItem.id;
       } else if (resp.status === 409) {
-        // Conflict = already exists (race condition), just navigate to it
-        lastItem = await _tryPath(currentPath);
+        // Already exists (race condition) — re-list and find it
+        const retry = await _childrenById(currentId);
+        const retryMatch = retry.find(c => c.folder && c.name && c.name.toUpperCase() === seg.toUpperCase());
+        if (retryMatch) { currentId = retryMatch.id; lastItem = retryMatch; }
+        else throw new Error('Conflict but folder not found: ' + seg);
       } else {
-        throw new Error('Create folder "' + seg + '" failed: ' + resp.status);
+        throw new Error('Create "' + seg + '" failed: ' + resp.status);
       }
     }
     
     // Create subfolders in the final folder
     if (lastItem && lastItem.id) {
-      const driveId = lastItem.parentReference ? lastItem.parentReference.driveId : null;
-      const childBase = driveId 
-        ? '/drives/' + driveId + '/items/' + lastItem.id + '/children'
-        : '/me/drive/items/' + lastItem.id + '/children';
+      const createSubUrl = prefix + '/items/' + lastItem.id + '/children';
       for (const subName of ['Docum interna', 'Enviar al juzgado']) {
         try {
-          await fetch('https://graph.microsoft.com/v1.0' + childBase, {
+          await fetch('https://graph.microsoft.com/v1.0' + createSubUrl, {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: subName, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
           });
-        } catch(e) { /* ignore if subfolder exists */ }
+        } catch(e) { /* ignore if already exists */ }
       }
     }
     
