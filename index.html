@@ -157,6 +157,7 @@ function sel(opts,cur,fn){return`<select onchange="${fn}"><option value="">Todos
 function PAG(tp){if(tp<=1)return'';let s='<div class="pg">';s+=`<button class="pb" onclick="pg=1;R()"${pg===1?' disabled':''}>«</button><button class="pb" onclick="pg=Math.max(1,pg-1);R()"${pg===1?' disabled':''}>‹</button>`;let a=Math.max(1,pg-2),b=Math.min(tp,a+4);if(b-a<4)a=Math.max(1,b-4);for(let i=a;i<=b;i++)s+=`<button class="pb${i===pg?' on':''}" onclick="pg=${i};R()">${i}</button>`;s+=`<span class="pi">${pg}/${tp}</span><button class="pb" onclick="pg=Math.min(${tp},pg+1);R()"${pg===tp?' disabled':''}>›</button><button class="pb" onclick="pg=${tp};R()"${pg===tp?' disabled':''}>»</button></div>`;return s;}
 function getMainEv(p){if(!p.eventos||!Array.isArray(p.eventos))return null;const K=['organo','seccion','localidad','numProc','anio','clase','sent','fSent','firme','fFirm','costF','costC'];for(const e of p.eventos){const o={};K.forEach((k,i)=>o[k]=e[i]||'');if(o.organo)return o;}return null;}
 function getAllEv(p){if(!p.eventos||!Array.isArray(p.eventos))return[];const K=['organo','seccion','localidad','numProc','anio','clase','sent','fSent','firme','fFirm','costF','costC'];return p.eventos.map(e=>{const o={};K.forEach((k,i)=>o[k]=e[i]||'');return o;}).filter(e=>e.organo||e.numProc||e.clase);}
+function getAllEvRaw(p){if(!p.eventos||!Array.isArray(p.eventos))return[];const K=['organo','seccion','localidad','numProc','anio','clase','sent','fSent','firme','fFirm','costF','costC'];return p.eventos.map(e=>{const o={};K.forEach((k,i)=>o[k]=e[i]||'');return o;});}
 function getTercForNig(nig){if(!nig)return[];return DB.t.filter(t=>t.nig===nig);}
 function getDemandante(nig){if(!nig)return'';const tercs=DB.t.filter(t=>t.nig===nig&&t.condicion==='DEMANDANTE');if(tercs.length===0)return'';return tercs.map(t=>t.razon||[t.ap1,t.ap2,t.nombre].filter(Boolean).join(' ')).join(', ');}
 function getEjecForNig(nig){if(!nig)return[];return DB.c.filter(c=>c.nig===nig);}
@@ -1129,7 +1130,7 @@ function rInf(){
 // ===== DETAIL =====
 let detTab='ficha'; // 'ficha' or 'ejec'
 function rDet(){const d=det,bl={proc:'Procedimientos',reg:'Registro 2021-22',terc:'Terceros',conc:'Concursos'}[d.from];let html=`<button class="bk" onclick="det=null;detTab='ficha';rN();R()">← ${bl}</button>`;
-if(d.type==='proc'){const f=d.from==='conc'?DB.p:fP();const p=d.from==='conc'?DB.p[d.idx]:f[d.idx];if(!p)return html+'No encontrado';const pidx=DB.p.indexOf(p);const evs=getAllEv(p),tercs=getTercForNig(p.nig),ci=v0(p.cuantiaIndet);
+if(d.type==='proc'){const f=d.from==='conc'?DB.p:fP();const p=d.from==='conc'?DB.p[d.idx]:f[d.idx];if(!p)return html+'No encontrado';const pidx=DB.p.indexOf(p);const evs=getAllEvRaw(p),tercs=getTercForNig(p.nig),ci=v0(p.cuantiaIndet);
 const _ev1=getMainEv(p);const _hdrInst=_ev1?(_ev1.organo?H(_ev1.organo):'')+((_ev1.seccion?' nº '+H(_ev1.seccion):''))+(_ev1.localidad?' de '+H(_ev1.localidad):'')+(_ev1.clase?' '+H(_ev1.clase):'')+(_ev1.numProc?' '+H(_ev1.numProc)+'/'+H(_ev1.anio):''):'';
 html+=`<div class="bn"><h2>${_hdrInst||H(p.desc)||'Procedimiento'}</h2>${_hdrInst&&p.desc?`<div style="margin-top:4px;font-size:13.5px;color:rgba(255,255,255,.78);font-weight:400">${H(p.desc)}</div>`:''}<div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">${eB(p.estado)} ${rB(p.resultado)} ${cB(p.calidad)}</div></div>`;
 // Sub-tabs: Ficha / Control de la Ejecución o Control de Concursos
@@ -1441,30 +1442,13 @@ async function graphPatch(url, body) {
 // Social: "AUTOS 172-26"
 function _claseToPrefix(clase) {
   if (!clase) return '';
-  const c = clase.toUpperCase().trim();
-  // Short form (from the UI dropdowns)
-  const shortMap = {
+  const c = clase.toUpperCase();
+  const map = {
     'ABREVIADO':'PA','ORDINARIO':'PO','P.O. LABORAL':'AUTOS','VERBAL':'JV',
     'MONITORIO':'MON','APELACIÓN':'APELACIÓN','CASACIÓN':'CASACIÓN',
     'EJECUCIÓN':'EJEC','PIEZA SEPARADA':'PS','CONCURSO':'CONCURSO ORDINARIO'
   };
-  if (shortMap[c]) return shortMap[c];
-  // Long form (from the legacy Access data / Excel)
-  if (c.includes('ABREVIADO')) return 'PA';
-  if (c.includes('ORDINARIO') && !c.includes('CONCURSO')) return 'PO';
-  if (c.includes('LABORAL') || c.includes('DESPIDO') || c.includes('SEGURIDAD SOCIAL')) return 'AUTOS';
-  if (c.includes('VERBAL')) return 'JV';
-  if (c.includes('MONITORIO')) return 'MON';
-  if (c.includes('APELACIÓN') || c.includes('RECURSO DE APELACIÓN')) return 'APELACIÓN';
-  if (c.includes('CASACIÓN') || c.includes('RECURSO DE CASACIÓN')) return 'CASACIÓN';
-  if (c.includes('SUPLICACIÓN') || c.includes('RECURSO DE SUPLICACIÓN')) return 'SUPLICACIÓN';
-  if (c.includes('EJECUCION') || c.includes('EJECUCIÓN') || c.includes('EJECUTORIA')) return 'EJEC';
-  if (c.includes('PIEZA')) return 'PS';
-  if (c.includes('CONCURSO')) return 'CONCURSO ORDINARIO';
-  if (c.includes('DILIGENCIAS')) return 'DP';
-  if (c.includes('MEDIDAS CAUTELARES')) return 'MC';
-  // If nothing matched, return the original value — it might already be a folder prefix
-  return clase;
+  return map[c] || clase;
 }
 
 function _buildSearchTerm(ev) {
@@ -1478,12 +1462,9 @@ function _buildSearchTerm(ev) {
 // Cache: searchTerm -> { webUrl, name } | null
 const _folderCache = {};
 
-// The approach: Graph search returns FILES, not folders. So we search for files
-// whose name contains the procedure identifier (e.g. "PA 114-26"), then deduce
-// the folder URL by looking at the file's webUrl and going up to the parent
-// folder that contains the procedure name. Think like a human: if you find
-// "PPAL PA 114-26 JC3.pdf" at ".../PA 114-26 (59-26-AJ)/PPAL PA 114-26 JC3.pdf",
-// the folder is ".../PA 114-26 (59-26-AJ)/".
+// The simplest possible approach: use Graph search to find the folder by name.
+// This is what a human does: type the procedure name in the search box and pick
+// the one that lives inside /PROCEDIMIENTOS/.
 async function findEvFolder(ev) {
   if (!graphToken || !ev || !ev.numProc) return null;
   const searchTerm = _buildSearchTerm(ev);
@@ -1491,108 +1472,41 @@ async function findEvFolder(ev) {
   const cacheKey = searchTerm.toLowerCase();
   if (_folderCache[cacheKey] !== undefined) return _folderCache[cacheKey];
 
-  console.log('[SJ Folders] Buscando: "' + searchTerm + '"');
+  console.log('[SJ Folders] Buscando carpeta: "' + searchTerm + '"');
 
   try {
-    // Use the Microsoft Search API (/search/query) which reliably returns BOTH files and folders
-    const searchBody = {
-      requests: [{
-        entityTypes: ['driveItem'],
-        query: { queryString: '"' + searchTerm + '" path:PROCEDIMIENTOS' },
-        from: 0,
-        size: 25,
-        fields: ['name','webUrl','parentReference']
-      }]
-    };
-    const resp = await fetch('https://graph.microsoft.com/v1.0/search/query', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + graphToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify(searchBody)
-    });
-    const searchData = await resp.json();
-    const termUpper = searchTerm.toUpperCase();
+    // Use the Graph search endpoint — same one that syncFromSharePoint already uses successfully
+    const base = (window._driveBase || '/me/drive/root:').replace('/root:', '');
+    // If _driveBase is "/drives/{id}/root:", base becomes "/drives/{id}"
+    // If _driveBase is "/me/drive/root:", base becomes "/me/drive"
+    const searchUrl = (base || '/me/drive') + "/root/search(q='" + encodeURIComponent(searchTerm) + "')?$top=25&$select=name,webUrl,id,folder,parentReference";
+    const data = await graphGet(searchUrl);
 
-    if (searchData && searchData.value && searchData.value[0] && searchData.value[0].hitsContainers) {
-      const hits = searchData.value[0].hitsContainers[0];
-      if (hits && hits.hits && hits.hits.length > 0) {
-        console.log('[SJ Folders] Search API devolvió ' + hits.hits.length + ' resultados');
-
-        // Strategy 1: Look for a direct folder match
-        for (const hit of hits.hits) {
-          const res = hit.resource;
-          if (!res || !res.name) continue;
-          const nameUpper = res.name.toUpperCase();
-          const webUrl = res.webUrl || '';
-          
-          // Is this a folder whose name starts with our searchTerm?
-          if (nameUpper.startsWith(termUpper) && webUrl.toUpperCase().includes('/PROCEDIMIENTOS/')) {
-            // Check if it's actually a folder (no file extension in name or has folder-like properties)
-            if (!res.name.includes('.') || res.name.indexOf('.') < res.name.lastIndexOf(' ')) {
-              console.log('[SJ Folders] ✓ Carpeta encontrada: "' + res.name + '" → ' + webUrl);
-              _folderCache[cacheKey] = { webUrl: webUrl, id: res.id || null, name: res.name };
-              return _folderCache[cacheKey];
-            }
-          }
-        }
-
-        // Strategy 2: Deduce folder from any file whose URL contains the procedure name
-        for (const hit of hits.hits) {
-          const res = hit.resource;
-          if (!res || !res.webUrl) continue;
-          const url = res.webUrl;
-          if (!url.toUpperCase().includes('/PROCEDIMIENTOS/')) continue;
-
-          const parts = url.split('/');
-          for (let pi = parts.length - 2; pi >= 0; pi--) {
-            let segment;
-            try { segment = decodeURIComponent(parts[pi]); } catch(e) { segment = parts[pi]; }
-            if (segment.toUpperCase().startsWith(termUpper)) {
-              const folderUrl = parts.slice(0, pi + 1).join('/');
-              console.log('[SJ Folders] ✓ Carpeta deducida: "' + segment + '" → ' + folderUrl);
-              _folderCache[cacheKey] = { webUrl: folderUrl, id: null, name: segment };
-              return _folderCache[cacheKey];
-            }
-          }
-        }
-
-        console.log('[SJ Folders] ✗ Resultados encontrados pero ninguno coincide con "' + searchTerm + '" en /PROCEDIMIENTOS/');
-        hits.hits.forEach(function(h,i) { console.log('  [' + i + '] ' + (h.resource ? h.resource.name : '?') + ' | ' + (h.resource ? h.resource.webUrl : '')); });
+    if (data && data.value && data.value.length > 0) {
+      const termUpper = searchTerm.toUpperCase();
+      // Pick the first folder whose name starts with our search term AND lives under /PROCEDIMIENTOS/
+      const match = data.value.find(item =>
+        item.folder &&
+        item.name &&
+        item.name.toUpperCase().startsWith(termUpper) &&
+        item.parentReference &&
+        item.parentReference.path &&
+        item.parentReference.path.toUpperCase().includes('/PROCEDIMIENTOS/')
+      );
+      if (match) {
+        console.log('[SJ Folders] ✓ Encontrada: "' + match.name + '" → ' + match.webUrl);
+        _folderCache[cacheKey] = { webUrl: match.webUrl, id: match.id, name: match.name };
+        return _folderCache[cacheKey];
       } else {
-        console.log('[SJ Folders] ✗ Sin resultados (hitsContainers vacío)');
+        console.log('[SJ Folders] ✗ Búsqueda devolvió ' + data.value.length + ' resultados pero ninguno coincide dentro de /PROCEDIMIENTOS/');
+        // Log what we got for debugging
+        data.value.forEach(function(v,i){ console.log('  [' + i + '] ' + (v.folder?'📁':'📄') + ' ' + v.name + ' | path: ' + (v.parentReference?v.parentReference.path:'-')); });
       }
     } else {
-      console.log('[SJ Folders] ✗ Respuesta de Search API inesperada:', JSON.stringify(searchData).substring(0, 300));
+      console.log('[SJ Folders] ✗ Sin resultados de búsqueda para "' + searchTerm + '"');
     }
   } catch(e) {
-    console.error('[SJ Folders] Error en Search API:', e.message);
-    
-    // FALLBACK: try the simpler drive search as a last resort
-    try {
-      console.log('[SJ Folders] Intentando fallback con drive search...');
-      const base = (window._driveBase || '/me/drive/root:').replace('/root:', '');
-      const fallbackUrl = (base || '/me/drive') + "/root/search(q='" + encodeURIComponent(searchTerm) + "')?$top=30";
-      const data = await graphGet(fallbackUrl);
-      if (data && data.value) {
-        const termUpper = searchTerm.toUpperCase();
-        for (const item of data.value) {
-          if (!item.webUrl) continue;
-          if (!item.webUrl.toUpperCase().includes('/PROCEDIMIENTOS/')) continue;
-          const parts = item.webUrl.split('/');
-          for (let pi = parts.length - 2; pi >= 0; pi--) {
-            let segment;
-            try { segment = decodeURIComponent(parts[pi]); } catch(ex) { segment = parts[pi]; }
-            if (segment.toUpperCase().startsWith(termUpper)) {
-              const folderUrl = parts.slice(0, pi + 1).join('/');
-              console.log('[SJ Folders] ✓ Carpeta deducida (fallback): "' + segment + '" → ' + folderUrl);
-              _folderCache[cacheKey] = { webUrl: folderUrl, id: null, name: segment };
-              return _folderCache[cacheKey];
-            }
-          }
-        }
-      }
-    } catch(e2) {
-      console.error('[SJ Folders] Fallback también falló:', e2.message);
-    }
+    console.error('[SJ Folders] Error en búsqueda:', e.message);
   }
 
   _folderCache[cacheKey] = null;
