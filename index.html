@@ -1655,31 +1655,46 @@ async function _getProcFolderUrl() {
   return null;
 }
 
-// Handle manual folder link: user picks the folder URL from the browser address bar and pastes it
-async function _findFolderManual(pidx, evIdx) {
-  const url = prompt(
-    'VINCULAR CARPETA MANUALMENTE\n' +
+// Handle manual folder link: two-step process
+// Step 1 (first click): open PROCEDIMIENTOS in OneDrive, change button to "Pegar URL"
+// Step 2 (second click): show prompt to paste the URL
+async function _findFolderStep1(btnId, pidx, evIdx) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  // Open PROCEDIMIENTOS folder in OneDrive
+  var u = await _getProcFolderUrl();
+  if (u) {
+    window.open(u, '_blank');
+  } else {
+    alert('No se encontró la carpeta PROCEDIMIENTOS en OneDrive.\nNavegue manualmente a su OneDrive.');
+  }
+  // Transform button to step 2
+  btn.textContent = '📋 Pegar URL de carpeta';
+  btn.style.background = '#27ae60';
+  btn.setAttribute('onclick', '_findFolderStep2(' + pidx + ',' + evIdx + ')');
+}
+
+function _findFolderStep2(pidx, evIdx) {
+  var url = prompt(
+    'VINCULAR CARPETA\n' +
     '════════════════════════════════════════\n\n' +
-    '1. Se abrirá la carpeta PROCEDIMIENTOS en OneDrive\n' +
-    '2. Navegue hasta la carpeta del procedimiento\n' +
-    '3. Copie la URL de la barra de direcciones del navegador\n' +
-    '4. Vuelva aquí y péguela a continuación\n\n' +
-    'Pegue la URL de la carpeta:'
+    'Pegue aquí la URL de la carpeta del procedimiento\n' +
+    'que ha localizado en OneDrive:'
   );
   if (!url || !url.trim()) return;
-  const trimmed = url.trim();
+  var trimmed = url.trim();
   // Store it in the folder cache so it persists during session
-  const p = DB.p[pidx];
+  var p = DB.p[pidx];
   if (!p) return;
-  const evs = getAllEv(p);
-  const ev = evs[evIdx];
+  var evs = getAllEv(p);
+  var ev = evs[evIdx];
   if (!ev) return;
-  const searchTerm = _buildSearchTerm(ev);
+  var searchTerm = _buildSearchTerm(ev);
   if (searchTerm) {
     _folderCache[searchTerm.toLowerCase()] = { webUrl: trimmed, id: '', name: searchTerm };
   }
   // Re-render
-  const el = document.getElementById('_flinks_' + pidx);
+  var el = document.getElementById('_flinks_' + pidx);
   if (el) el.dataset.loaded = '0';
   R();
 }
@@ -1783,7 +1798,7 @@ function rFolderLinks(pidx) {
           html += '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;' +
             'padding:4px 10px;font-size:11px;color:var(--tl);background:var(--cr);border:1px solid var(--bd);' +
             'border-radius:6px">' + searchTerm + ' — sin carpeta ' +
-            '<button id="_ffbtn_' + pidx + '_' + i + '" onclick="(async function(){var u=await _getProcFolderUrl();if(u)window.open(u,\'_blank\');else alert(\'No se encontró la carpeta PROCEDIMIENTOS en OneDrive.\');_findFolderManual(' + pidx + ',' + i + ');})()" ' +
+            '<button id="_ffbtn_' + pidx + '_' + i + '" onclick="_findFolderStep1(\'_ffbtn_' + pidx + '_' + i + '\',' + pidx + ',' + i + ')" ' +
             'style="background:var(--ny);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:inherit">' +
             'Encontrar carpeta</button>' +
             '<button id="' + btnId + '" onclick="_createFolderBtn(this,' + pidx + ',window._pendingEvCreate[\'' + btnId + '\'])" ' +
