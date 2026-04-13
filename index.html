@@ -680,7 +680,7 @@ function concLabel(c){
 function rConc(){
   const allConcs=getConcs();
   const filtered=fConcs();
-  if(!concNig&&filtered.length>0)concNig=filtered[0].nig;
+  if(filtered.length>0&&!filtered.find(c=>c.nig===concNig))concNig=filtered[0].nig;
   const sel=allConcs.find(c=>c.nig===concNig);
   let gCom=0,gRec=0,gPag=0;
   allConcs.forEach(c=>{gCom+=c.tCom;gRec+=c.tRec;gPag+=c.tPag;});
