@@ -143,7 +143,7 @@ function oS(id,o,k,el){o[k]=el.value;pg=1;pf=id;R();}function oSl(o,k,v){o[k]=v;
 function openD(type,idx,from){det={type,idx,from};rN();R();}
 function H(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function v0(v){return v&&v!=='0'&&v!=='0.0'&&v!=='false';}
-function uv(a,f){const s=new Set();a.forEach(r=>{const v=r[f];if(v0(v))s.add(v);});return[...s].sort();}
+function uv(a,f){const s=new Set();a.forEach(r=>{const v=r[f];if(v0(v))s.add(v);});if(f==='letrado')s.add('Jaime Cañete Millán');return[...s].sort();}
 function eB(s){if(!v0(s))return'';if(s.includes('Primera'))return`<span class="bg bg-bl">${H(s)}</span>`;if(s.includes('Apelación'))return`<span class="bg bg-or">${H(s)}</span>`;if(s.includes('Casación'))return`<span class="bg bg-rd">${H(s)}</span>`;return`<span class="bg bg-gy">${H(s)}</span>`;}
 function rB(s){if(!v0(s))return'<span style="color:var(--tm)">—</span>';const u=s.toUpperCase();if(u.includes('GANAD')||u.includes('DESESTIMADA'))return`<span class="bg bg-gr">${H(s)}</span>`;if(u.includes('PERDID'))return`<span class="bg bg-rd">${H(s)}</span>`;if(u.includes('PARCIAL'))return`<span class="bg bg-or">${H(s)}</span>`;if(u.includes('DESIST'))return`<span class="bg bg-gy">${H(s)}</span>`;if(u.includes('ACUERDO'))return`<span class="bg bg-bl">${H(s)}</span>`;return`<span class="bg bg-go">${H(s)}</span>`;}
 function cB(s){if(!v0(s))return'';if(s==='DEMANDADOS')return`<span class="bg bg-bl">${H(s)}</span>`;if(s.includes('ACREEDOR'))return`<span class="bg bg-or">${H(s)}</span>`;if(s==='DEMANDANTES')return`<span class="bg bg-gr">${H(s)}</span>`;return`<span class="bg bg-gy">${H(s)}</span>`;}
